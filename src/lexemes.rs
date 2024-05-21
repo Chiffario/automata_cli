@@ -1,4 +1,5 @@
-use crate::lexemes::State::Character;
+use crate::lexemes::State::{Character, Letter, Number, Separator};
+
 #[derive(Debug)]
 pub enum Error {
     IncorrectIdentifier(Location),
@@ -18,96 +19,229 @@ pub enum TokenType {
 
 #[derive(Debug)]
 enum State {
-    Character(char),
-    Letter(char),
-    ValueCharacter(char),
-    StringLiteralCharacter(char),
-    IdentifierCharacter(char),
+    // Intermediate
+    /// \t, spaces, \n
     Whitespace,
-    IncludeI,
-    IncludeN,
-    IncludeC,
-    IncludeL,
-    IncludeU,
-    IncludeD,
-    IncludeE,
-    IntN,
-    IntT,
-    ReturnE,
-    ReturnT,
-    ReturnU,
-    ReturnR,
-    ReturnN,
+    /// '(',')','[',']', '{', '}', ';'
+    Separator(char),
+    /// Generic state for letters
+    Letter(char),
+    /// Fallback state for characters
+    Character(char),
+    /// Generic state for numbers
+    Number(char),
+    /// _, used for variable name starts
+    Underscore,
+
+    KeywordEnd,
+    // Operators:
+    /// +
+    Add,
+    /// -
+    Sub,
+    /// *
+    Mul,
+    /// /
+    Div,
+    /// %
+    Mod,
+    /// <<
+    Shl,
+    /// >>
+    Shr,
+    /// &&
+    And,
+    /// ||
+    Or,
+    /// ^
+    BitXor,
+    /// &
+    BitAnd,
+    /// |
+    BitOr,
+    /// ++
+    Incr,
+    /// --
+    Decr,
+    // Comparison operators:
+    /// \<
+    LT,
+    /// \>
+    GT,
+    /// <=
+    LE,
+    /// >=
+    GE,
+    /// ==
+    Eq,
+    /// !=
+    NEq,
+    /// !
+    Neg,
+    // Assign operators:
+    /// =
+    Assign,
+    /// +=
+    AddAssign,
+    /// -=
+    SubAssign,
+    /// *=
+    MulAssign,
+    /// /=
+    DivAssign,
+    /// %=
+    ModAssign,
+    /// <\<\=
+    ShlAssign,
+    /// \>\>\=
+    ShrAssign,
+    /// &=
+    BitAndAssign,
+    /// |=
+    BitOrAssign,
+    // Special operators:
+    /// ,
+    Comma,
+    /// ->
+    Arrow,
+
+    // Keywords
+    /// asm
+    AsmS,
+    AsmM,
+    /// auto
     AutoU,
     AutoT,
     AutoO,
+    /// bool
     BoolO,
     BoolO2,
     BoolL,
+    /// break
     BreakR,
     BreakE,
     BreakA,
     BreakK,
-    CaseA,
+    /// case | catch
+    CaA,
+    /// case
     CaseS,
     CaseE,
-    CatchA,
+    /// catch
     CatchT,
     CatchC,
     CatchH,
+    /// char
     CharH,
     CharA,
     CharR,
+    /// class
     ClassL,
     ClassA,
     ClassS,
     ClassS2,
-    ConstO,
-    ConstN,
+    /// compl | concept | const
+    CoO,
+    /// compl
+    ComplM,
+    ComplP,
+    ComplL,
+    /// concept | const
+    ConN,
+    /// concept
+    ConceptC,
+    ConceptE,
+    ConceptP,
+    ConceptT,
+    /// const
     ConstS,
     ConstT,
-    DefaultE,
+    /// default | delete
+    DeE,
     DefaultF,
     DefaultA,
     DefaultU,
     DefaultL,
     DefaultT,
-    DeleteE,
     DeleteL,
-    DeleteE2,
+    DeleteE,
     DeleteT,
-    DeleteE3,
+    DeleteE2,
+    /// do | double
     DoO,
-    DoubleO,
+    /// double
     DoubleU,
     DoubleB,
     DoubleL,
     DoubleE,
+    /// else
     ElseL,
     ElseS,
     ElseE,
+    /// enum
+    EnumN,
+    EnumU,
+    EnumM,
+    /// export | extern
+    ExX,
+    /// export
+    ExportP,
+    ExportO,
+    ExportR,
+    ExportT,
+    /// extern
+    ExternT,
+    ExternE,
+    ExternR,
+    ExternN,
+    /// false
     FalseA,
     FalseL,
     FalseS,
     FalseE,
+    /// float
     FloatL,
     FloatO,
     FloatA,
     FloatT,
+    /// for
     ForO,
     ForR,
+    /// friend
     FriendR,
     FriendI,
     FriendE,
     FriendN,
     FriendD,
+    /// goto
     GotoO,
     GotoT,
     GotoO2,
+    /// if
     IfF,
+    /// int | inline
+    InN,
+    /// inline
+    InlineN,
+    InlineL,
+    InlineI,
+    InlineN2,
+    InlineE,
+    /// int
+    IntN,
+    IntT,
+    /// long
     LongO,
     LongN,
     LongG,
+    /// mutable
+    MutableU,
+    MutableT,
+    MutableA,
+    MutableB,
+    MutableL,
+    MutableE,
+    /// namespace
     NamespaceA,
     NamespaceM,
     NamespaceE,
@@ -118,6 +252,14 @@ enum State {
     NamespaceE2,
     NewE,
     NewW,
+    /// nullptr
+    NullptrU,
+    NullptrL,
+    NullptrL2,
+    NullptrP,
+    NullptrT,
+    NullptrR,
+    /// operator
     OperatorP,
     OperatorE,
     OperatorR,
@@ -125,30 +267,72 @@ enum State {
     OperatorT,
     OperatorO,
     OperatorR2,
+    /// private | protected
+    PrR,
+    /// private
+    PrivateR,
+    PrivateI,
+    PrivateV,
+    PrivateA,
+    PrivateT,
+    PrivateE,
+    /// protected
+    ProtectedR,
+    ProtectedO,
+    ProtectedT,
+    ProtectedE,
+    ProtectedC,
+    ProtectedT2,
+    ProtectedE2,
+    ProtectedD,
+    /// public
+    PublicU,
+    PublicB,
+    PublicL,
+    PublicI,
+    PublicC,
+    /// return
+    ReturnE,
+    ReturnT,
+    ReturnU,
+    ReturnR,
+    ReturnN,
+    /// short
     ShortH,
     ShortO,
     ShortR,
     ShortT,
-    SignedI,
+    /// signed || sizeof
+    SiI,
+    /// signed
     SignedG,
     SignedN,
     SignedE,
     SignedD,
-    SizeofI,
+    /// sizeof
     SizeofZ,
     SizeofE,
     SizeofO,
     SizeofF,
-    StaticT,
+    /// static | struct
+    StT,
+    /// static
     StaticA,
-    StaticT2,
+    StaticT,
     StaticI,
     StaticC,
-    StructT,
+    /// struct
     StructR,
     StructU,
     StructC,
-    StructT2,
+    StructT,
+    /// switch
+    SwitchW,
+    SwitchI,
+    SwitchT,
+    SwitchC,
+    SwitchH,
+    /// template
     TemplateE,
     TemplateM,
     TemplateP,
@@ -156,42 +340,52 @@ enum State {
     TemplateA,
     TemplateT,
     TemplateE2,
-    ThisH,
+    /// this | throw
+    ThH,
+    /// this
     ThisI,
     ThisS,
-    ThrowH,
+    /// throw
     ThrowR,
     ThrowO,
     ThrowW,
-    TrueR,
+    /// true | try
+    TrR,
+    /// true
     TrueU,
     TrueE,
-    TryR,
+    /// try
     TryY,
-    UnionN,
+    /// union | unsigned
+    UnN,
+    /// union
     UnionI,
     UnionO,
-    UnionN2,
-    UnsignedN,
+    UnionN,
+    /// unsigned
     UnsignedS,
     UnsignedI,
     UnsignedG,
-    UnsignedN2,
+    UnsignedN,
     UnsignedE,
     UnsignedD,
+    /// using
     UsingS,
     UsingI,
     UsingN,
     UsingG,
+    /// virtual
     VirtualI,
     VirtualR,
     VirtualT,
     VirtualU,
     VirtualA,
     VirtualL,
+    /// void
     VoidO,
     VoidI,
     VoidD,
+    /// while
     WhileH,
     WhileI,
     WhileL,
@@ -213,15 +407,16 @@ pub struct Token {
 
 pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
     let mut tokens = vec![];
-    let mut state: State = State::Whitespace;
     let mut location: Location = Location {
         line: 0,
         column: 0,
         char: ' ',
     };
+    let mut state: State = State::Whitespace;
+    let mut buff: String = String::new();
+    let mut is_writable: bool = false;
     let mut current_idx: usize = 0;
     let mut current: char;
-    let mut temporary_text = String::new();
     while current_idx < text.chars().count() {
         current = text.as_str().as_bytes()[current_idx] as char;
         location.char = current;
@@ -230,4756 +425,1468 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             location.line += 1;
             location.column += 1;
         }
-        current_idx += 1;
         match state {
-            State::Whitespace => {
+            State::Whitespace |
+            State::KeywordEnd
+            => {
+                buff.push(current);
                 state = match current {
-                    ' ' | '\t' => State::Whitespace,
-                    c if c.is_alphabetic() => {
-                        temporary_text.push(c);
-                        State::Letter(c)
-                    }
-                    c if c.is_numeric() => {
-                        temporary_text.push(c);
-                        State::ValueCharacter(c)
-                    }
-                    c if [';', '(', ')', ',', '{', '}'].contains(&c) => {
-                        tokens.push(Token {
-                            token: c.to_string(),
-                            token_type: TokenType::Separator,
-                        });
-                        State::Character(c)
-                    }
-                    c => State::Character(c),
-                };
-            }
-            State::Character('#') => {
-                state = match current {
-                    'i' => {
-                        temporary_text.push_str("#i");
-                        State::IncludeI
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    '+' => State::Add,
+                    '-' => State::Sub,
+                    '*' => State::Mul,
+                    '/' => State::Div,
+                    '%' => State::Mod,
+                    '<' => State::LT,
+                    '>' => State::GT,
+                    '=' => State::Assign,
+                    '!' => State::Neg,
+                    '&' => State::BitAnd,
+                    '|' => State::BitOr,
+                    '^' => State::BitXor,
+                    ',' => State::Comma,
+                    '_' => State::Underscore,
+                    c if c.is_alphabetic() => Letter(c),
+                    c if c.is_numeric() => Number(c),
+                    '(' | ')' | '[' | ']' | '{' | '}' | ';' => Separator(current),
+                    _ => Character(current)
                 }
             }
-            State::Character('-') => {
+            State::Separator(char) => {
                 state = match current {
-                    '-' => {
-                        tokens.push(Token {
-                            token: "--".to_owned(),
-                            token_type: TokenType::Operator,
-                        });
-                        State::Character(current)
-                    }
-                    '=' => {
-                        tokens.push(Token {
-                            token: "-=".to_owned(),
-                            token_type: TokenType::Operator,
-                        });
-                        State::Character(current)
-                    }
-                    c if c.is_alphabetic() => {
-                        tokens.push(Token {
-                            token: "-".to_owned(),
-                            token_type: TokenType::Operator,
-                        });
-                        State::Letter(c)
-                    }
-                    c if c.is_numeric() => {
-                        tokens.push(Token {
-                            token: "-".to_owned(),
-                            token_type: TokenType::Operator,
-                        });
-                        State::ValueCharacter(c)
-                    }
-                    c if c.is_whitespace() => {
-                        tokens.push(Token {
-                            token: "+".to_owned(),
-                            token_type: TokenType::Operator,
-                        });
-                        State::Whitespace
-                    }
-                    c => State::Character(c),
-                }
-            }
-            State::Character('+') => {
-                state = match current {
-                    '+' => {
-                        tokens.push(Token {
-                            token: "++".to_owned(),
-                            token_type: TokenType::Operator,
-                        });
-                        State::Character(current)
-                    }
-                    '=' => {
-                        tokens.push(Token {
-                            token: "+=".to_owned(),
-                            token_type: TokenType::Operator,
-                        });
-                        State::Character(current)
-                    }
-                    c if c.is_alphabetic() => {
-                        tokens.push(Token {
-                            token: "+".to_owned(),
-                            token_type: TokenType::Operator,
-                        });
-                        State::Letter(c)
-                    }
-                    c if c.is_numeric() => {
-                        tokens.push(Token {
-                            token: "+".to_owned(),
-                            token_type: TokenType::Operator,
-                        });
-                        State::ValueCharacter(c)
-                    }
-                    c if c.is_whitespace() => {
-                        tokens.push(Token {
-                            token: "+".to_owned(),
-                            token_type: TokenType::Operator,
-                        });
-                        State::Whitespace
-                    }
-                    c => State::Character(c),
-                }
-            }
-            State::Character('"') => {
-                state = match current {
-                    c => {
-                        temporary_text.push(c);
-                        State::StringLiteralCharacter(c)
-                    }
-                }
-            }
-            State::Character(c) => {
-                state = match current {
-                    c if c.is_alphabetic() => {
-                        temporary_text.push(c);
-                        State::Letter(c)
-                    }
-                    '#' => {
-                        temporary_text.push(c);
-                        State::Character('#')
-                    }
-                    c if c.is_numeric() || c == '.' => {
-                        temporary_text.push(c);
-                        State::ValueCharacter(c)
-                    }
-                    c if [' ', '\t', ';', '(', ')', ',', '{', '}'].contains(&c) => match c {
-                        ' ' | '\t' => State::Whitespace,
-                        _ => {
-                            tokens.push(Token {
-                                token: c.to_string(),
-                                token_type: TokenType::Separator,
-                            });
-                            State::Character(c)
-                        }
-                    },
-                    c => State::Character(c),
-                }
-            }
-            State::StringLiteralCharacter(c) => {
-                state = match current {
-                    c if c.is_alphabetic() => {
-                        temporary_text.push(c);
-                        State::StringLiteralCharacter(c)
-                    }
-                    '"' => {
-                        tokens.push(Token {
-                            token_type: TokenType::StringLiteral,
-                            token: temporary_text.clone(),
-                        });
-                        temporary_text.clear();
-                        State::Whitespace
-                    }
-                    c => {
-                        temporary_text.push(c);
-                        State::StringLiteralCharacter(c)
-                    }
-                }
-            }
-            State::ValueCharacter(c) => {
-                state = match current {
-                    c if c.is_numeric() || c == '.' => {
-                        temporary_text.push(c);
-                        State::ValueCharacter(c)
-                    }
-                    c if [' ', '\t', ';', '(', ')', ',', '{', '}'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::ConstValue,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            ' ' | '\t' => State::Whitespace,
-                            _ => {
-                                tokens.push(Token {
-                                    token: c.to_string(),
-                                    token_type: TokenType::Separator,
-                                });
-                                State::Character(c)
-                            }
-                        }
-                    }
-                    c => State::Character(c),
-                }
-            }
-            State::IdentifierCharacter(c) => {
-                state = match current {
-                    c if [' ', '\t', ';', '(', ')', ',', '{', '}', '\n'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            ' ' | '\t' => State::Whitespace,
-                            _ => {
-                                tokens.push(Token {
-                                    token: c.to_string(),
-                                    token_type: TokenType::Separator,
-                                });
-                                State::Character(c)
-                            }
-                        }
-                    }
-                    c if c.is_alphanumeric() || c == '_' => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    c => return Err(Error::IncorrectIdentifier(location)),
-                }
-            }
-            State::IncludeI => {
-                state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'n' => {
-                        temporary_text.push('n');
-                        State::IncludeN
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
-            }
-            State::IncludeN => {
-                state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'c' => {
-                        temporary_text.push('c');
-                        State::IncludeC
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
-            }
-            State::IncludeC => {
-                state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'l' => {
-                        temporary_text.push('l');
-                        State::IncludeL
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
-            }
-            State::IncludeL => {
-                state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'u' => {
-                        temporary_text.push('u');
-                        State::IncludeU
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
-            }
-            State::IncludeU => {
-                state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'd' => {
-                        temporary_text.push('d');
-                        State::IncludeD
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
-            }
-            State::IncludeD => {
-                state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::IncludeE
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
-            }
-            State::IncludeE => {
-                state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
-            }
 
-            // `int` | `inline`
-            State::Letter('i') => {
-                state = match current {
-                    c if c == ' ' || c == '\t' || c == ';' => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            ' ' | '\t' => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("???"),
-                        }
-                    }
-                    'n' => {
-                        temporary_text.push('n');
-                        State::IntN
-                    }
-                    'f' => {
-                        temporary_text.push('f');
-                        State::IfF
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    c => Character(c),
-                };
+                }
             }
-            State::IntN => {
+            State::Number(char) => {
                 state = match current {
-                    c if c == ' ' || c == '\t' || c == ';' => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            ' ' | '\t' => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("???"),
-                        }
-                    }
-                    't' => {
-                        temporary_text.push('t');
-                        State::IntT
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::IntT => {
+            State::Underscore => {
+                buff.push(current);
                 state = match current {
-                    c if c == ' ' || c == '\t' || c == ';' => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            ' ' | '\t' => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("???"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                    c if c.is_alphabetic() => Letter(c),
+                    ' ' | '\n' | '\t' => {
+                        is_writable = true;
+                        State::Whitespace
+                    },
+                    _ => return Err(Error::IncorrectIdentifier(location))
+                }
             }
-            // `return`
-            State::Letter('r') => {
+            State::Add => {
+                buff.push(current);
                 state = match current {
-                    c if c == ' ' || c == '\t' || c == ';' => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            ' ' | '\t' => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("???"),
-                        }
+                    '=' => {
+                        is_writable = true;
+                        State::AddAssign
+                    },
+                    '+' => {
+                        is_writable = true;
+                        State::Incr
                     }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::ReturnE
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => Character(current)
+                }
             }
-            State::ReturnE => {
+            State::Sub => {
+                buff.push(current);
                 state = match current {
-                    c if c == ' ' || c == '\t' || c == ';' => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            ' ' | '\t' => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("???"),
-                        }
+                    '=' => {
+                        is_writable = true;
+                        State::SubAssign
                     }
-                    't' => {
-                        temporary_text.push('t');
-                        State::ReturnT
+                    '-' => {
+                        is_writable = true;
+                        State::Decr
                     }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
+                    '>' => {
+                        is_writable = true;
+                        State::Arrow
                     }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => Character(current)
+                }
             }
-            State::ReturnT => {
+            State::Mul => {
+                buff.push(current);
                 state = match current {
-                    c if c == ' ' || c == '\t' || c == ';' => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            ' ' | '\t' => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("???"),
-                        }
+                    '=' => {
+                        is_writable = true;
+                        State::MulAssign
                     }
-                    'u' => {
-                        temporary_text.push('u');
-                        State::ReturnU
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => Character(current)
+                }
             }
-            State::ReturnU => {
+            State::Div => {
+                buff.push(current);
                 state = match current {
-                    c if c == ' ' || c == '\t' || c == ';' => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            ' ' | '\t' => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("???"),
-                        }
+                    '=' => {
+                        is_writable = true;
+                        State::DivAssign
                     }
-                    'r' => {
-                        temporary_text.push('r');
-                        State::ReturnR
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => Character(current)
+                }
             }
-            State::ReturnR => {
+            State::Mod => {
+                buff.push(current);
                 state = match current {
-                    c if c == ' ' || c == '\t' || c == ';' => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            ' ' | '\t' => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("???"),
-                        }
+                    '=' => {
+                        is_writable = true;
+                        State::ModAssign
                     }
-                    'n' => {
-                        temporary_text.push('n');
-                        State::ReturnN
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => Character(current)
+                }
             }
-            State::ReturnN => {
+            State::Shl => {
+                buff.push(current);
                 state = match current {
-                    c if c == ' ' || c == '\t' || c == ';' => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            ' ' | '\t' => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("???"),
-                        }
+                    '=' => {
+                        is_writable = true;
+                        State::ShlAssign
                     }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => Character(current)
+                }
             }
-            // `auto`
+            State::Shr => {
+                buff.push(current);
+                state = match current {
+                    '=' => {
+                        is_writable = true;
+                        State::ShrAssign
+                    }
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => Character(current)
+                }
+            }
+            State::And => {
+                buff.push(current);
+                state = match current {
+                    '&' => {
+                        is_writable = true;
+                        State::BitAnd
+                    }
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => Character(current)
+                }
+            }
+            State::Or => {
+                buff.push(current);
+                state = match current {
+                    '|' => {
+                        is_writable = true;
+                        State::BitOr
+                    }
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => Character(current)
+                }
+            }
+            State::BitXor => {
+                buff.push(current);
+                state = match current {
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => Character(current)
+                }
+            }
+            State::BitAnd => {
+                buff.push(current);
+                state = match current {
+                    '=' => {
+                        is_writable = true;
+                        State::BitAndAssign
+                    },
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => Character(current)
+                }
+            }
+            State::BitOr => {
+                buff.push(current);
+                state = match current {
+                    '=' => {
+                        is_writable = true;
+                        State::BitOrAssign
+                    },
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => Character(current)
+                }
+            }
+            State::Incr => {
+                buff.push(current);
+                state = match current {
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => Character(current)
+                }
+            }
+            State::Decr => {
+                buff.push(current);
+                state = match current {
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => Character(current)
+                }
+            }
+            State::LT => {
+                buff.push(current);
+                state = match current {
+                    '=' => {
+                        is_writable = true;
+                        State::LE
+                    },
+                    '<' => State::Shl,
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => Character(current)
+                }
+            }
+            State::GT => {
+                buff.push(current);
+                state = match current {
+                    '=' => State::GE,
+                    '>' => State::Shr,
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => Character(current)
+                }
+            }
+            State::LE => {
+                state = match current {
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => {
+                        buff.push(current);
+                        Character(current)
+                    }
+                }
+            }
+            State::GE => {
+                state = match current {
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => {
+                        buff.push(current);
+                        Character(current)
+                    }
+                }
+            }
+            State::Eq => {
+                state = match current {
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => {
+                        buff.push(current);
+                        Character(current)
+                    }
+                }
+            }
+            State::NEq => {
+                state = match current {
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => {
+                        buff.push(current);
+                        Character(current)
+                    }
+                }
+            }
+            State::Neg => {
+                buff.push(current);
+                state = match current {
+                    '=' => {
+                        is_writable = true;
+                        state = State::NEq
+                    }
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => {
+                        Character(current)
+                    }
+                }
+            }
+            State::Assign => {
+                buff.push(current);
+                state = match current {
+                    '=' => State::Eq,
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => {
+                        buff.push(current);
+                        Character(current)
+                    }
+                }
+            }
+            State::AddAssign => {
+                state = match current {
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => {
+                        buff.push(current);
+                        Character(current)
+                    }
+                }
+            }
+            State::SubAssign => {
+                state = match current {
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => {
+                        buff.push(current);
+                        Character(current)
+                    }
+                }
+            }
+            State::MulAssign => {
+                state = match current {
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => {
+                        buff.push(current);
+                        Character(current)
+                    }
+                }
+            }
+            State::DivAssign => {
+                state = match current {
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => {
+                        buff.push(current);
+                        Character(current)
+                    }
+                }
+            }
+            State::ModAssign => {
+                state = match current {
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => {
+                        buff.push(current);
+                        Character(current)
+                    }
+                }
+            }
+            State::ShlAssign => {
+                state = match current {
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => {
+                        buff.push(current);
+                        Character(current)
+                    }
+                }
+            }
+            State::ShrAssign => {
+                state = match current {
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => {
+                        buff.push(current);
+                        Character(current)
+                    }
+                }
+            }
+            State::BitAndAssign => {
+                state = match current {
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => {
+                        buff.push(current);
+                        Character(current)
+                    }
+                }
+            }
+            State::BitOrAssign => {
+                state = match current {
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => {
+                        buff.push(current);
+                        Character(current)
+                    }
+                }
+            }
+            State::Comma => {
+                state = match current {
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => {
+                        buff.push(current);
+                        Character(current)
+                    }
+                }
+            }
+            State::Arrow => {
+                state = match current {
+                    ' ' | '\n' | '\t' => State::Whitespace,
+                    _ => {
+                        buff.push(current);
+                        Character(current)
+                    }
+                }
+            }
             State::Letter('a') => {
+                buff.push(current);
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
+                    's' => State::AsmS,
+                    'u' => State::AutoU,
+                    ' ' | '\n' | '\t' => {
+                        is_writable = true;
+                        State::Whitespace
+                    },
+                    _ => {
+                        buff.push(current);
+                        Character(current)
                     }
-                    'u' => {
-                        temporary_text.push('u');
-                        State::AutoU
-                    }
+                }
+            }
+            State::AsmS => {
+                buff.push(current);
+                state = match current {
+                    'm' => {
+                        State::AsmM
+                    },
                     c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
+                        buff.push(current);
+                        Letter(c)
+                    },
+                    ' ' | '\n' | '\t' => {
+                        State::Whitespace
+                    },
+                    '('|')'|'['|']'| '{'| '}'| ';' => {
+                        State::Separator(current)
                     }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                    _ => {
+                        buff.push(current);
+                        Character(current)
+                    }
+                }
+            }
+            State::AsmM => {
+                state = match current {
+                    c if c.is_alphanumeric() => {
+                        buff.push(current);
+                        Letter(c)
+                    },
+                    ' ' | '\n' | '\t' | '('|')'|'['|']'| '{'| '}'| ';' => {
+                        current_idx -= 1;
+                        State::KeywordEnd
+                    },
+                    _ => {
+                        buff.push(current);
+                        Character(current)
+                    }
+                }
             }
             State::AutoU => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
                     't' => {
-                        temporary_text.push('t');
+                        buff.push(current);
                         State::AutoT
-                    }
+                    },
                     c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
+                        buff.push(current);
+                        Letter(c)
+                    },
+                    ' ' | '\n' | '\t' => {
+                        State::Whitespace
+                    },
+                    '('|')'|'['|']'| '{'| '}'| ';' => {
+                        State::Separator(current)
                     }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                    _ => {
+                        buff.push(current);
+                        Character(current)
+                    }
+                }
             }
             State::AutoT => {
+                buff.push(current);
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
+                    'o' => State::AutoO,
+                    c if c.is_alphanumeric() => Letter(c),
+                    ' ' | '\n' | '\t' => {
+                        State::Whitespace
+                    },
+
+                    _ => {
+                        buff.push(current);
+                        Character(current)
                     }
-                    'o' => {
-                        temporary_text.push('o');
-                        State::AutoO
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::AutoO => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
                     c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
+                        buff.push(current);
+                        Letter(c)
+                    },
+                    ' ' | '\n' | '\t' | '('|')'|'['|']'| '{'| '}'| ';' => {
+                        current_idx -= 1;
+                        State::KeywordEnd
+                    },
+                    _ => {
+                        buff.push(current);
+                        Character(current)
                     }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::Letter('b') => {
+                buff.push(current);
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
+                    'o' => State::BoolO,
+                    'r' => State::BreakR,
+                    ' ' | '\n' | '\t' | '('|')'|'['|']'| '{'| '}'| ';' => {
+                        State::Whitespace
+                    },
+                    _ => {
+                        buff.push(current);
+                        Character(current)
                     }
-                    'o' => {
-                        temporary_text.push('o');
-                        State::BoolO
-                    }
-                    'r' => {
-                        temporary_text.push('r');
-                        State::BreakR
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::BoolO => {
+                buff.push(current);
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
+                    'o' => State::BoolO2,
+                    c if c.is_alphanumeric() => Letter(c),
+                    ' ' | '\n' | '\t' => {
+                        State::Whitespace
+                    },
+
+                    _ => {
+                        Character(current)
                     }
-                    'o' => {
-                        temporary_text.push('o');
-                        State::BoolO2
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::BoolO2 => {
+                buff.push(current);
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
+                    'l' => State::BoolL,
+                    c if c.is_alphanumeric() => Letter(c),
+                    ' ' | '\n' | '\t' => {
+                        State::Whitespace
+                    },
+
+                    _ => {
+                        Character(current)
                     }
-                    'l' => {
-                        temporary_text.push('l');
-                        State::BoolL
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::BoolL => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
                     c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
+                        buff.push(current);
+                        Letter(c)
+                    },
+                    ' ' | '\n' | '\t' | '('|')'|'['|']'| '{'| '}'| ';' => {
+                        current_idx -= 1;
+                        State::KeywordEnd
+                    },
+                    _ => {
+                        buff.push(current);
+                        Character(current)
                     }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::BreakR => {
+                buff.push(current);
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
+                    'e' => State::BreakE,
+                    c if c.is_alphanumeric() => Letter(c),
+                    ' ' | '\n' | '\t' => {
+                        State::Whitespace
+                    },
+
+                    _ => {
+                        Character(current)
                     }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::BreakE
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::BreakE => {
+                buff.push(current);
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
+                    'a' => State::BreakA,
+                    c if c.is_alphanumeric() => Letter(c),
+                    ' ' | '\n' | '\t' => {
+                        State::Whitespace
+                    },
+
+                    _ => {
+                        Character(current)
                     }
-                    'a' => {
-                        temporary_text.push('a');
-                        State::BreakA
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::BreakA => {
+                buff.push(current);
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
+                    'k' => State::BreakK,
+                    c if c.is_alphanumeric() => Letter(c),
+                    ' ' | '\n' | '\t' => {
+                        State::Whitespace
+                    },
+
+                    _ => {
+                        Character(current)
                     }
-                    'k' => {
-                        temporary_text.push('k');
-                        State::BreakK
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::BreakK => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
                     c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
+                        buff.push(current);
+                        Letter(c)
+                    },
+                    ' ' | '\n' | '\t' | '('|')'|'['|']'| '{'| '}'| ';' => {
+                        current_idx -= 1;
+                        State::KeywordEnd
+                    },
+                    _ => {
+                        buff.push(current);
+                        Character(current)
                     }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::Letter('c') => {
+            State::CaA => {
+                buff.push(current);
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
+                    's' => State::CaseS,
+                    't' => State::CatchT,
+                    c if c.is_alphanumeric() => Letter(c),
+                    ' ' | '\n' | '\t' | '('|')'|'['|']'| '{'| '}'| ';' => {
+                        State::Whitespace
                     }
-                    'a' => {
-                        temporary_text.push('a');
-                        State::CaseA
-                    }
-                    'h' => {
-                        temporary_text.push('h');
-                        State::CharH
-                    }
-                    'l' => {
-                        temporary_text.push('l');
-                        State::ClassL
-                    }
-                    'o' => {
-                        temporary_text.push('o');
-                        State::ConstO
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
-            }
-            State::CaseA => {
-                state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    's' => {
-                        temporary_text.push('s');
-                        State::CaseS
-                    }
-                    't' => {
-                        temporary_text.push('t');
-                        State::CatchT
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                    _ => Character(current)
+
+                }
             }
             State::CaseS => {
+                buff.push(current);
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
+                    'e' => State::CaseE,
+                    c if c.is_alphanumeric() => Letter(c),
+                    ' ' | '\n' | '\t' | '('|')'|'['|']'| '{'| '}'| ';' => {
+                        State::Whitespace
                     }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::CaseE
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                    _ => Character(current)
+                }
             }
             State::CaseE => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
+                    c if c.is_alphanumeric() => Letter(c),
+                    ' ' | '\n' | '\t' | '('|')'|'['|']'| '{'| '}'| ';' => {
+                        State::KeywordEnd
                     }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                    _ => Character(current)
+                }
             }
             State::CatchT => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'c' => {
-                        temporary_text.push('c');
-                        State::CatchC
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::CatchC => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'a' => {
-                        temporary_text.push('a');
-                        State::CatchA
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::CatchH => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::CharH => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'a' => {
-                        temporary_text.push('a');
-                        State::CharA
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::CharA => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'r' => {
-                        temporary_text.push('r');
-                        State::CharR
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::CharR => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::ClassL => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'a' => {
-                        temporary_text.push('a');
-                        State::ClassA
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::ClassA => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    's' => {
-                        temporary_text.push('s');
-                        State::ClassS
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::ClassS => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    's' => {
-                        temporary_text.push('s');
-                        State::ClassS2
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::ClassS2 => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::ConstO => {
+            State::CoO => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'n' => {
-                        temporary_text.push('n');
-                        State::ConstN
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::ConstN => {
+            State::ComplM => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    's' => {
-                        temporary_text.push('s');
-                        State::ConstS
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
+            }
+            State::ComplP => {
+                state = match current {
+                }
+            }
+            State::ComplL => {
+                state = match current {
+                }
+            }
+            State::ConN => {
+                state = match current {
+                }
+            }
+            State::ConceptC => {
+                state = match current {
+                }
+            }
+            State::ConceptE => {
+                state = match current {
+                }
+            }
+            State::ConceptP => {
+                state = match current {
+                }
+            }
+            State::ConceptT => {
+                state = match current {
+                }
             }
             State::ConstS => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    't' => {
-                        temporary_text.push('t');
-                        State::ConstT
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::ConstT => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::Letter('d') => {
+            State::DeE => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::DefaultE
-                    }
-                    'o' => {
-                        temporary_text.push('o');
-                        State::DoO
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
-            }
-            State::DefaultE => {
-                state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'f' => {
-                        temporary_text.push('f');
-                        State::DefaultF
-                    }
-                    'l' => {
-                        temporary_text.push('l');
-                        State::DeleteL
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::DefaultF => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'a' => {
-                        temporary_text.push('a');
-                        State::DefaultA
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::DefaultA => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'u' => {
-                        temporary_text.push('u');
-                        State::DefaultU
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::DefaultU => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'l' => {
-                        temporary_text.push('l');
-                        State::DefaultL
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::DefaultL => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    't' => {
-                        temporary_text.push('t');
-                        State::DefaultT
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::DefaultT => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::DeleteL => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::DeleteE2
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::DeleteE2 => {
+            State::DeleteE => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    't' => {
-                        temporary_text.push('t');
-                        State::DeleteT
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::DeleteT => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::DeleteE3
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::DeleteE3 => {
+            State::DeleteE2 => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::DoO => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'u' => {
-                        temporary_text.push('u');
-                        State::DoubleU
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::DoubleU => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'b' => {
-                        temporary_text.push('b');
-                        State::DoubleB
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::DoubleB => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'l' => {
-                        temporary_text.push('l');
-                        State::DoubleL
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::DoubleL => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::DoubleE
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::DoubleE => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
-            }
-            State::Letter('e') => {
-                state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'l' => {
-                        temporary_text.push('l');
-                        State::ElseL
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::ElseL => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    's' => {
-                        temporary_text.push('s');
-                        State::ElseS
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::ElseS => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::ElseE
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::ElseE => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::Letter('f') => {
+            State::EnumN => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'a' => {
-                        temporary_text.push('a');
-                        State::FalseA
-                    }
-                    'o' => {
-                        temporary_text.push('o');
-                        State::ForO
-                    }
-                    'l' => {
-                        temporary_text.push('l');
-                        State::FloatL
-                    }
-                    'r' => {
-                        temporary_text.push('r');
-                        State::FriendR
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
+            }
+            State::EnumU => {
+                state = match current {
+                }
+            }
+            State::EnumM => {
+                state = match current {
+                }
+            }
+            State::ExX => {
+                state = match current {
+                }
+            }
+            State::ExportP => {
+                state = match current {
+                }
+            }
+            State::ExportO => {
+                state = match current {
+                }
+            }
+            State::ExportR => {
+                state = match current {
+                }
+            }
+            State::ExportT => {
+                state = match current {
+                }
+            }
+            State::ExternT => {
+                state = match current {
+                }
+            }
+            State::ExternE => {
+                state = match current {
+                }
+            }
+            State::ExternR => {
+                state = match current {
+                }
+            }
+            State::ExternN => {
+                state = match current {
+                }
             }
             State::FalseA => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'l' => {
-                        temporary_text.push('l');
-                        State::FalseL
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::FalseL => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    's' => {
-                        temporary_text.push('s');
-                        State::FalseS
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::FalseS => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::FalseE
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::FalseE => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::FloatL => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'o' => {
-                        temporary_text.push('o');
-                        State::FloatO
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::FloatO => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'a' => {
-                        temporary_text.push('a');
-                        State::FloatA
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::FloatA => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    't' => {
-                        temporary_text.push('t');
-                        State::FloatT
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::FloatT => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::ForO => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'r' => {
-                        temporary_text.push('r');
-                        State::ForR
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::ForR => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::FriendR => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'i' => {
-                        temporary_text.push('i');
-                        State::FriendI
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::FriendI => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::FriendE
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::FriendE => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'n' => {
-                        temporary_text.push('n');
-                        State::FriendN
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::FriendN => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'd' => {
-                        temporary_text.push('d');
-                        State::FriendD
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::FriendD => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
-            }
-            State::Letter('g') => {
-                state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'o' => {
-                        temporary_text.push('o');
-                        State::GotoO
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::GotoO => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    't' => {
-                        temporary_text.push('t');
-                        State::GotoT
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::GotoT => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'o' => {
-                        temporary_text.push('o');
-                        State::GotoO2
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::GotoO2 => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::IfF => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::Letter('l') => {
+            State::InN => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'o' => {
-                        temporary_text.push('o');
-                        State::LongO
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
+            }
+            State::InlineN => {
+                state = match current {
+                }
+            }
+            State::InlineL => {
+                state = match current {
+                }
+            }
+            State::InlineI => {
+                state = match current {
+                }
+            }
+            State::InlineN2 => {
+                state = match current {
+                }
+            }
+            State::InlineE => {
+                state = match current {
+                }
+            }
+            State::IntN => {
+                state = match current {
+                }
+            }
+            State::IntT => {
+                state = match current {
+                }
             }
             State::LongO => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'n' => {
-                        temporary_text.push('n');
-                        State::LongN
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::LongN => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'g' => {
-                        temporary_text.push('g');
-                        State::LongG
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::LongG => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::Letter('n') => {
+            State::MutableU => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'a' => {
-                        temporary_text.push('a');
-                        State::NamespaceA
-                    }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::NewE
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
+            }
+            State::MutableT => {
+                state = match current {
+                }
+            }
+            State::MutableA => {
+                state = match current {
+                }
+            }
+            State::MutableB => {
+                state = match current {
+                }
+            }
+            State::MutableL => {
+                state = match current {
+                }
+            }
+            State::MutableE => {
+                state = match current {
+                }
             }
             State::NamespaceA => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'm' => {
-                        temporary_text.push('m');
-                        State::NamespaceM
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::NamespaceM => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::NamespaceE
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::NamespaceE => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    's' => {
-                        temporary_text.push('s');
-                        State::NamespaceS
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::NamespaceS => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'p' => {
-                        temporary_text.push('p');
-                        State::NamespaceP
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::NamespaceP => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'a' => {
-                        temporary_text.push('a');
-                        State::NamespaceA2
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::NamespaceA2 => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'c' => {
-                        temporary_text.push('c');
-                        State::NamespaceC
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::NamespaceC => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::NamespaceE2
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::NamespaceE2 => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::NewE => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'w' => {
-                        temporary_text.push('w');
-                        State::NewW
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::NewW => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::Letter('o') => {
+            State::NullptrU => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'p' => {
-                        temporary_text.push('p');
-                        State::OperatorP
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
+            }
+            State::NullptrL => {
+                state = match current {
+                }
+            }
+            State::NullptrL2 => {
+                state = match current {
+                }
+            }
+            State::NullptrP => {
+                state = match current {
+                }
+            }
+            State::NullptrT => {
+                state = match current {
+                }
+            }
+            State::NullptrR => {
+                state = match current {
+                }
             }
             State::OperatorP => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::OperatorE
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::OperatorE => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'r' => {
-                        temporary_text.push('r');
-                        State::OperatorR
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::OperatorR => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'a' => {
-                        temporary_text.push('a');
-                        State::OperatorA
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::OperatorA => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    't' => {
-                        temporary_text.push('t');
-                        State::OperatorT
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::OperatorT => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'o' => {
-                        temporary_text.push('o');
-                        State::OperatorO
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::OperatorO => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'r' => {
-                        temporary_text.push('r');
-                        State::OperatorR2
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::OperatorR2 => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::Letter('s') => {
+            State::PrR => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'h' => {
-                        temporary_text.push('h');
-                        State::ShortH
-                    }
-                    'i' => {
-                        temporary_text.push('i');
-                        State::SignedI
-                    }
-                    't' => {
-                        temporary_text.push('t');
-                        State::StaticT
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
+            }
+            State::PrivateR => {
+                state = match current {
+                }
+            }
+            State::PrivateI => {
+                state = match current {
+                }
+            }
+            State::PrivateV => {
+                state = match current {
+                }
+            }
+            State::PrivateA => {
+                state = match current {
+                }
+            }
+            State::PrivateT => {
+                state = match current {
+                }
+            }
+            State::PrivateE => {
+                state = match current {
+                }
+            }
+            State::ProtectedR => {
+                state = match current {
+                }
+            }
+            State::ProtectedO => {
+                state = match current {
+                }
+            }
+            State::ProtectedT => {
+                state = match current {
+                }
+            }
+            State::ProtectedE => {
+                state = match current {
+                }
+            }
+            State::ProtectedC => {
+                state = match current {
+                }
+            }
+            State::ProtectedT2 => {
+                state = match current {
+                }
+            }
+            State::ProtectedE2 => {
+                state = match current {
+                }
+            }
+            State::ProtectedD => {
+                state = match current {
+                }
+            }
+            State::PublicU => {
+                state = match current {
+                }
+            }
+            State::PublicB => {
+                state = match current {
+                }
+            }
+            State::PublicL => {
+                state = match current {
+                }
+            }
+            State::PublicI => {
+                state = match current {
+                }
+            }
+            State::PublicC => {
+                state = match current {
+                }
+            }
+            State::ReturnE => {
+                state = match current {
+                }
+            }
+            State::ReturnT => {
+                state = match current {
+                }
+            }
+            State::ReturnU => {
+                state = match current {
+                }
+            }
+            State::ReturnR => {
+                state = match current {
+                }
+            }
+            State::ReturnN => {
+                state = match current {
+                }
             }
             State::ShortH => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'o' => {
-                        temporary_text.push('o');
-                        State::ShortO
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::ShortO => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'r' => {
-                        temporary_text.push('r');
-                        State::ShortR
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::ShortR => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    't' => {
-                        temporary_text.push('t');
-                        State::ShortT
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::ShortT => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::SignedI => {
+            State::SiI => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'g' => {
-                        temporary_text.push('g');
-                        State::SignedG
-                    }
-                    'z' => {
-                        temporary_text.push('z');
-                        State::SizeofZ
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::SignedG => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'n' => {
-                        temporary_text.push('n');
-                        State::SignedN
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::SignedN => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::SignedE
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::SignedE => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'd' => {
-                        temporary_text.push('d');
-                        State::SignedD
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::SignedD => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
-            }
-            State::SizeofI => {
-                state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'z' => {
-                        temporary_text.push('z');
-                        State::SizeofZ
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::SizeofZ => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::SizeofE
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::SizeofE => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'o' => {
-                        temporary_text.push('o');
-                        State::SizeofO
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::SizeofO => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'f' => {
-                        temporary_text.push('f');
-                        State::SizeofF
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::SizeofF => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::StaticT => {
+            State::StT => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'a' => {
-                        temporary_text.push('a');
-                        State::StaticA
-                    }
-                    'r' => {
-                        temporary_text.push('r');
-                        State::StructR
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::StaticA => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    't' => {
-                        temporary_text.push('t');
-                        State::StaticT2
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::StaticT2 => {
+            State::StaticT => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'i' => {
-                        temporary_text.push('i');
-                        State::StaticI
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::StaticI => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'c' => {
-                        temporary_text.push('c');
-                        State::StaticC
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::StaticC => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::StructR => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'u' => {
-                        temporary_text.push('u');
-                        State::StructU
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::StructU => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'c' => {
-                        temporary_text.push('c');
-                        State::StructC
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::StructC => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    't' => {
-                        temporary_text.push('t');
-                        State::StructT
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::StructT => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::Letter('t') => {
+            State::SwitchW => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::TemplateE
-                    }
-                    'h' => {
-                        temporary_text.push('h');
-                        State::ThrowH
-                    }
-                    'r' => {
-                        temporary_text.push('r');
-                        State::TrueR
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
+            }
+            State::SwitchI => {
+                state = match current {
+                }
+            }
+            State::SwitchT => {
+                state = match current {
+                }
+            }
+            State::SwitchC => {
+                state = match current {
+                }
+            }
+            State::SwitchH => {
+                state = match current {
+                }
             }
             State::TemplateE => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'm' => {
-                        temporary_text.push('m');
-                        State::TemplateM
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::TemplateM => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'p' => {
-                        temporary_text.push('p');
-                        State::TemplateP
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::TemplateP => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'l' => {
-                        temporary_text.push('l');
-                        State::TemplateL
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::TemplateL => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'a' => {
-                        temporary_text.push('a');
-                        State::TemplateA
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::TemplateA => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    't' => {
-                        temporary_text.push('t');
-                        State::TemplateT
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::TemplateT => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::TemplateE2
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::TemplateE2 => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::ThisH => {
+            State::ThH => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'i' => {
-                        temporary_text.push('i');
-                        State::ThisI
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::ThisI => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    's' => {
-                        temporary_text.push('s');
-                        State::ThisS
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::ThisS => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
-            }
-            State::ThrowH => {
-                state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'r' => {
-                        temporary_text.push('r');
-                        State::ThrowR
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::ThrowR => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'o' => {
-                        temporary_text.push('o');
-                        State::ThrowO
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::ThrowO => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'w' => {
-                        temporary_text.push('w');
-                        State::ThrowW
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::ThrowW => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::TrueR => {
+            State::TrR => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'u' => {
-                        temporary_text.push('u');
-                        State::TrueU
-                    }
-                    'y' => {
-                        temporary_text.push('y');
-                        State::TryY
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::TrueU => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::TrueE
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::TrueE => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::TryY => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::Letter('u') => {
+            State::UnN => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'n' => {
-                        temporary_text.push('n');
-                        State::UnionN
-                    }
-                    's' => {
-                        temporary_text.push('s');
-                        State::UsingS
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
-            }
-            State::UnionN => {
-                state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'i' => {
-                        temporary_text.push('i');
-                        State::UnionI
-                    }
-                    's' => {
-                        temporary_text.push('s');
-                        State::UnsignedS
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::UnionI => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'o' => {
-                        temporary_text.push('o');
-                        State::UnionO
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::UnionO => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'n' => {
-                        temporary_text.push('n');
-                        State::UnionN2
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-            State::UnionN2 => {
+            State::UnionN => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::UnsignedS => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'i' => {
-                        temporary_text.push('i');
-                        State::UnsignedI
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::UnsignedI => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'g' => {
-                        temporary_text.push('g');
-                        State::UnsignedG
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::UnsignedG => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'n' => {
-                        temporary_text.push('n');
-                        State::UnsignedN
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::UnsignedN => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::UnsignedE
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::UnsignedE => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'd' => {
-                        temporary_text.push('d');
-                        State::UnsignedD
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::UnsignedD => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::UsingS => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'i' => {
-                        temporary_text.push('i');
-                        State::UsingI
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::UsingI => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'n' => {
-                        temporary_text.push('n');
-                        State::UsingN
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::UsingN => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'g' => {
-                        temporary_text.push('g');
-                        State::UsingG
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::UsingG => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
-            }
-            State::Letter('v') => {
-                state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'i' => {
-                        temporary_text.push('i');
-                        State::VirtualI
-                    }
-                    'o' => {
-                        temporary_text.push('o');
-                        State::VoidO
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::VirtualI => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'r' => {
-                        temporary_text.push('r');
-                        State::VirtualR
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::VirtualR => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    't' => {
-                        temporary_text.push('t');
-                        State::VirtualT
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::VirtualT => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'u' => {
-                        temporary_text.push('u');
-                        State::VirtualU
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::VirtualU => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'a' => {
-                        temporary_text.push('a');
-                        State::VirtualA
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::VirtualA => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'l' => {
-                        temporary_text.push('l');
-                        State::VirtualL
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::VirtualL => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::VoidO => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'i' => {
-                        temporary_text.push('i');
-                        State::VoidI
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::VoidI => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'd' => {
-                        temporary_text.push('d');
-                        State::VoidD
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::VoidD => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
-            }
-            State::Letter('w') => {
-                state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'h' => {
-                        temporary_text.push('h');
-                        State::WhileH
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::WhileH => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'i' => {
-                        temporary_text.push('i');
-                        State::WhileI
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::WhileI => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'l' => {
-                        temporary_text.push('l');
-                        State::WhileL
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::WhileL => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    'e' => {
-                        temporary_text.push('e');
-                        State::WhileE
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
             State::WhileE => {
                 state = match current {
-                    c if [' ', '\t', ';'].contains(&c) => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Keyword,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            c if c.is_whitespace() => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("!!!"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectKeyword(location)),
-                };
+                }
             }
-
-            State::Letter(l) => {
-                state = match current {
-                    c if c == ' ' || c == '\t' || c == ';' => {
-                        tokens.push(Token {
-                            token: temporary_text.clone(),
-                            token_type: TokenType::Identifier,
-                        });
-                        temporary_text.clear();
-                        match c {
-                            ' ' | '\t' => State::Whitespace,
-                            ';' => State::Character(';'),
-                            _ => panic!("???"),
-                        }
-                    }
-                    c if c.is_alphanumeric() => {
-                        temporary_text.push(c);
-                        State::IdentifierCharacter(c)
-                    }
-                    _ => return Err(Error::IncorrectIdentifier(location)),
-                };
-            }
-            _ => {}
         }
+        current_idx += 1;
     }
     Ok(tokens)
 }
