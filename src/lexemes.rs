@@ -1,11 +1,9 @@
-use std::collections::HashSet;
 use crate::lexemes::State::Character;
-
 #[derive(Debug)]
 pub enum Error {
-    VariableNotDefined,
-    NotInclude,
-    IncorrectIdentifier,
+    IncorrectIdentifier(Location),
+    IncorrectKeyword(Location),
+    IncorrectOperator(Location),
 }
 
 #[derive(Debug, Clone, Eq, Ord, PartialOrd, PartialEq)]
@@ -15,7 +13,7 @@ pub enum TokenType {
     Operator,
     ConstValue,
     StringLiteral,
-    Punctuation,
+    Separator,
 }
 
 #[derive(Debug)]
@@ -26,7 +24,6 @@ enum State {
     StringLiteralCharacter(char),
     IdentifierCharacter(char),
     Whitespace,
-    // `#include`
     IncludeI,
     IncludeN,
     IncludeC,
@@ -34,20 +31,16 @@ enum State {
     IncludeU,
     IncludeD,
     IncludeE,
-    // `int`
     IntN,
     IntT,
-    // `return`
     ReturnE,
     ReturnT,
     ReturnU,
     ReturnR,
     ReturnN,
-    // `auto`
     AutoU,
     AutoT,
     AutoO,
-
     BoolO,
     BoolO2,
     BoolL,
@@ -206,6 +199,13 @@ enum State {
 }
 
 #[derive(Clone, Debug)]
+pub struct Location {
+    pub line: usize,
+    pub column: usize,
+    pub char: char,
+}
+
+#[derive(Clone, Debug)]
 pub struct Token {
     pub token_type: TokenType,
     pub token: String,
@@ -214,11 +214,22 @@ pub struct Token {
 pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
     let mut tokens = vec![];
     let mut state: State = State::Whitespace;
+    let mut location: Location = Location {
+        line: 0,
+        column: 0,
+        char: ' ',
+    };
     let mut current_idx: usize = 0;
     let mut current: char;
     let mut temporary_text = String::new();
     while current_idx < text.chars().count() {
         current = text.as_str().as_bytes()[current_idx] as char;
+        location.char = current;
+        print!("{current}");
+        if current == '\n' {
+            location.line += 1;
+            location.column += 1;
+        }
         current_idx += 1;
         match state {
             State::Whitespace => {
@@ -227,25 +238,112 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     c if c.is_alphabetic() => {
                         temporary_text.push(c);
                         State::Letter(c)
-                    },
+                    }
                     c if c.is_numeric() => {
                         temporary_text.push(c);
                         State::ValueCharacter(c)
-                    },
+                    }
+                    c if [';', '(', ')', ',', '{', '}'].contains(&c) => {
+                        tokens.push(Token {
+                            token: c.to_string(),
+                            token_type: TokenType::Separator,
+                        });
+                        State::Character(c)
+                    }
                     c => State::Character(c),
                 };
             }
             State::Character('#') => {
                 state = match current {
                     'i' => {
-                        temporary_text.push('i');
+                        temporary_text.push_str("#i");
                         State::IncludeI
                     }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
+                }
+            }
+            State::Character('-') => {
+                state = match current {
+                    '-' => {
+                        tokens.push(Token {
+                            token: "--".to_owned(),
+                            token_type: TokenType::Operator,
+                        });
+                        State::Character(current)
+                    }
+                    '=' => {
+                        tokens.push(Token {
+                            token: "-=".to_owned(),
+                            token_type: TokenType::Operator,
+                        });
+                        State::Character(current)
+                    }
+                    c if c.is_alphabetic() => {
+                        tokens.push(Token {
+                            token: "-".to_owned(),
+                            token_type: TokenType::Operator,
+                        });
+                        State::Letter(c)
+                    }
+                    c if c.is_numeric() => {
+                        tokens.push(Token {
+                            token: "-".to_owned(),
+                            token_type: TokenType::Operator,
+                        });
+                        State::ValueCharacter(c)
+                    }
+                    c if c.is_whitespace() => {
+                        tokens.push(Token {
+                            token: "+".to_owned(),
+                            token_type: TokenType::Operator,
+                        });
+                        State::Whitespace
+                    }
+                    c => State::Character(c),
+                }
+            }
+            State::Character('+') => {
+                state = match current {
+                    '+' => {
+                        tokens.push(Token {
+                            token: "++".to_owned(),
+                            token_type: TokenType::Operator,
+                        });
+                        State::Character(current)
+                    }
+                    '=' => {
+                        tokens.push(Token {
+                            token: "+=".to_owned(),
+                            token_type: TokenType::Operator,
+                        });
+                        State::Character(current)
+                    }
+                    c if c.is_alphabetic() => {
+                        tokens.push(Token {
+                            token: "+".to_owned(),
+                            token_type: TokenType::Operator,
+                        });
+                        State::Letter(c)
+                    }
+                    c if c.is_numeric() => {
+                        tokens.push(Token {
+                            token: "+".to_owned(),
+                            token_type: TokenType::Operator,
+                        });
+                        State::ValueCharacter(c)
+                    }
+                    c if c.is_whitespace() => {
+                        tokens.push(Token {
+                            token: "+".to_owned(),
+                            token_type: TokenType::Operator,
+                        });
+                        State::Whitespace
+                    }
+                    c => State::Character(c),
                 }
             }
             State::Character('"') => {
@@ -270,6 +368,16 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::ValueCharacter(c)
                     }
+                    c if [' ', '\t', ';', '(', ')', ',', '{', '}'].contains(&c) => match c {
+                        ' ' | '\t' => State::Whitespace,
+                        _ => {
+                            tokens.push(Token {
+                                token: c.to_string(),
+                                token_type: TokenType::Separator,
+                            });
+                            State::Character(c)
+                        }
+                    },
                     c => State::Character(c),
                 }
             }
@@ -282,45 +390,46 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     '"' => {
                         tokens.push(Token {
                             token_type: TokenType::StringLiteral,
-                            token: temporary_text.clone()
+                            token: temporary_text.clone(),
                         });
                         temporary_text.clear();
-                        State::ValueCharacter('"')
+                        State::Whitespace
                     }
                     c => {
                         temporary_text.push(c);
                         State::StringLiteralCharacter(c)
-                    },
+                    }
                 }
             }
             State::ValueCharacter(c) => {
                 state = match current {
-                    // ';' | ' ' | ',' => {
-                    //     tokens.push(Token {
-                    //         token: temporary_text.clone(),
-                    //         token_type: TokenType::ConstValue
-                    //     });
-                    //     temporary_text.clear();
-                    //     State::Character(';')
-                    //     // State::StringLiteralCharacter('"')
-                    // }
                     c if c.is_numeric() || c == '.' => {
                         temporary_text.push(c);
                         State::ValueCharacter(c)
                     }
-                    c => {
+                    c if [' ', '\t', ';', '(', ')', ',', '{', '}'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
-                            token_type: TokenType::ConstValue
+                            token_type: TokenType::ConstValue,
                         });
                         temporary_text.clear();
-                        State::Character(';')
-                    },
+                        match c {
+                            ' ' | '\t' => State::Whitespace,
+                            _ => {
+                                tokens.push(Token {
+                                    token: c.to_string(),
+                                    token_type: TokenType::Separator,
+                                });
+                                State::Character(c)
+                            }
+                        }
+                    }
+                    c => State::Character(c),
                 }
             }
             State::IdentifierCharacter(c) => {
                 state = match current {
-                    c if [' ','\t', ';', '=', '(', ')', ','].contains(&c) => {
+                    c if [' ', '\t', ';', '(', ')', ',', '{', '}', '\n'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -328,19 +437,25 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.clear();
                         match c {
                             ' ' | '\t' => State::Whitespace,
-                            _ => State::Character(c),
+                            _ => {
+                                tokens.push(Token {
+                                    token: c.to_string(),
+                                    token_type: TokenType::Separator,
+                                });
+                                State::Character(c)
+                            }
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() || c == '_' => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier)
+                    c => return Err(Error::IncorrectIdentifier(location)),
                 }
             }
             State::IncludeI => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -349,9 +464,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'n' => {
                         temporary_text.push('n');
                         State::IncludeN
@@ -360,12 +475,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::IncludeN => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -374,9 +489,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'c' => {
                         temporary_text.push('c');
                         State::IncludeC
@@ -385,12 +500,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::IncludeC => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -399,9 +514,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'l' => {
                         temporary_text.push('l');
                         State::IncludeL
@@ -410,12 +525,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::IncludeL => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -424,9 +539,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'u' => {
                         temporary_text.push('u');
                         State::IncludeU
@@ -435,12 +550,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::IncludeU => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -449,9 +564,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'd' => {
                         temporary_text.push('d');
                         State::IncludeD
@@ -460,12 +575,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::IncludeD => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -474,9 +589,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::IncludeE
@@ -485,12 +600,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::IncludeE => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -499,16 +614,16 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
 
             // `int` | `inline`
             State::Letter('i') => {
@@ -522,9 +637,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             ' ' | '\t' => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("???")
+                            _ => panic!("???"),
                         }
-                    },
+                    }
                     'n' => {
                         temporary_text.push('n');
                         State::IntN
@@ -551,9 +666,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             ' ' | '\t' => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("???")
+                            _ => panic!("???"),
                         }
-                    },
+                    }
                     't' => {
                         temporary_text.push('t');
                         State::IntT
@@ -562,7 +677,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
             }
             State::IntT => {
@@ -576,14 +691,14 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             ' ' | '\t' => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("???")
+                            _ => panic!("???"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
             }
             // `return`
@@ -598,9 +713,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             ' ' | '\t' => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("???")
+                            _ => panic!("???"),
                         }
-                    },
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::ReturnE
@@ -609,7 +724,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
             }
             State::ReturnE => {
@@ -623,9 +738,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             ' ' | '\t' => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("???")
+                            _ => panic!("???"),
                         }
-                    },
+                    }
                     't' => {
                         temporary_text.push('t');
                         State::ReturnT
@@ -634,7 +749,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
             }
             State::ReturnT => {
@@ -648,9 +763,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             ' ' | '\t' => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("???")
+                            _ => panic!("???"),
                         }
-                    },
+                    }
                     'u' => {
                         temporary_text.push('u');
                         State::ReturnU
@@ -659,7 +774,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
             }
             State::ReturnU => {
@@ -673,9 +788,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             ' ' | '\t' => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("???")
+                            _ => panic!("???"),
                         }
-                    },
+                    }
                     'r' => {
                         temporary_text.push('r');
                         State::ReturnR
@@ -684,7 +799,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
             }
             State::ReturnR => {
@@ -698,9 +813,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             ' ' | '\t' => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("???")
+                            _ => panic!("???"),
                         }
-                    },
+                    }
                     'n' => {
                         temporary_text.push('n');
                         State::ReturnN
@@ -709,7 +824,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
             }
             State::ReturnN => {
@@ -723,20 +838,20 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             ' ' | '\t' => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("???")
+                            _ => panic!("???"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
             }
             // `auto`
             State::Letter('a') => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -745,8 +860,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")                }
-                    },
+                            _ => panic!("!!!"),
+                        }
+                    }
                     'u' => {
                         temporary_text.push('u');
                         State::AutoU
@@ -755,12 +871,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::AutoU => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -769,9 +885,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     't' => {
                         temporary_text.push('t');
                         State::AutoT
@@ -780,12 +896,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::AutoT => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -794,9 +910,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'o' => {
                         temporary_text.push('o');
                         State::AutoO
@@ -805,12 +921,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::AutoO => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -819,19 +935,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::Letter('b') => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -840,8 +956,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")                }
-                    },
+                            _ => panic!("!!!"),
+                        }
+                    }
                     'o' => {
                         temporary_text.push('o');
                         State::BoolO
@@ -854,12 +971,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::BoolO => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -868,9 +985,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'o' => {
                         temporary_text.push('o');
                         State::BoolO2
@@ -879,12 +996,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::BoolO2 => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -893,9 +1010,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'l' => {
                         temporary_text.push('l');
                         State::BoolL
@@ -904,12 +1021,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::BoolL => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -918,19 +1035,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::BreakR => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -939,9 +1056,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::BreakE
@@ -950,12 +1067,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::BreakE => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -964,9 +1081,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'a' => {
                         temporary_text.push('a');
                         State::BreakA
@@ -975,12 +1092,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::BreakA => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -989,9 +1106,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'k' => {
                         temporary_text.push('k');
                         State::BreakK
@@ -1000,12 +1117,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::BreakK => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -1014,19 +1131,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::Letter('c') => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1035,9 +1152,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'a' => {
                         temporary_text.push('a');
                         State::CaseA
@@ -1058,12 +1175,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::CaseA => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1072,9 +1189,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     's' => {
                         temporary_text.push('s');
                         State::CaseS
@@ -1087,12 +1204,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::CaseS => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1101,9 +1218,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::CaseE
@@ -1112,12 +1229,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::CaseE => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -1126,19 +1243,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::CatchT => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1147,9 +1264,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'c' => {
                         temporary_text.push('c');
                         State::CatchC
@@ -1158,12 +1275,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::CatchC => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1172,9 +1289,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'a' => {
                         temporary_text.push('a');
                         State::CatchA
@@ -1183,12 +1300,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::CatchH => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -1197,19 +1314,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::CharH => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1218,9 +1335,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'a' => {
                         temporary_text.push('a');
                         State::CharA
@@ -1229,12 +1346,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::CharA => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1243,9 +1360,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'r' => {
                         temporary_text.push('r');
                         State::CharR
@@ -1254,12 +1371,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::CharR => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -1268,19 +1385,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ClassL => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1289,9 +1406,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'a' => {
                         temporary_text.push('a');
                         State::ClassA
@@ -1300,12 +1417,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ClassA => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1314,9 +1431,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     's' => {
                         temporary_text.push('s');
                         State::ClassS
@@ -1325,12 +1442,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ClassS => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1339,9 +1456,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     's' => {
                         temporary_text.push('s');
                         State::ClassS2
@@ -1350,12 +1467,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ClassS2 => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -1364,19 +1481,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ConstO => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1385,9 +1502,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'n' => {
                         temporary_text.push('n');
                         State::ConstN
@@ -1396,12 +1513,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ConstN => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1410,9 +1527,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     's' => {
                         temporary_text.push('s');
                         State::ConstS
@@ -1421,12 +1538,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ConstS => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1435,9 +1552,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     't' => {
                         temporary_text.push('t');
                         State::ConstT
@@ -1446,12 +1563,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ConstT => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -1460,19 +1577,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::Letter('d') => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1481,8 +1598,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")                }
-                    },
+                            _ => panic!("!!!"),
+                        }
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::DefaultE
@@ -1495,12 +1613,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::DefaultE => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1509,9 +1627,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'f' => {
                         temporary_text.push('f');
                         State::DefaultF
@@ -1524,12 +1642,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::DefaultF => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1538,9 +1656,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'a' => {
                         temporary_text.push('a');
                         State::DefaultA
@@ -1549,12 +1667,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::DefaultA => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1563,9 +1681,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'u' => {
                         temporary_text.push('u');
                         State::DefaultU
@@ -1574,12 +1692,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::DefaultU => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1588,9 +1706,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'l' => {
                         temporary_text.push('l');
                         State::DefaultL
@@ -1599,12 +1717,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::DefaultL => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1613,9 +1731,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     't' => {
                         temporary_text.push('t');
                         State::DefaultT
@@ -1624,12 +1742,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::DefaultT => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -1638,19 +1756,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::DeleteL => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1659,9 +1777,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::DeleteE2
@@ -1670,12 +1788,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::DeleteE2 => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1684,9 +1802,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     't' => {
                         temporary_text.push('t');
                         State::DeleteT
@@ -1695,12 +1813,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::DeleteT => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1709,9 +1827,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::DeleteE3
@@ -1720,12 +1838,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::DeleteE3 => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -1734,19 +1852,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::DoO => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -1755,9 +1873,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'u' => {
                         temporary_text.push('u');
                         State::DoubleU
@@ -1766,12 +1884,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::DoubleU => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1780,9 +1898,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'b' => {
                         temporary_text.push('b');
                         State::DoubleB
@@ -1791,12 +1909,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::DoubleB => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1805,9 +1923,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'l' => {
                         temporary_text.push('l');
                         State::DoubleL
@@ -1816,12 +1934,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::DoubleL => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1830,9 +1948,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::DoubleE
@@ -1841,12 +1959,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::DoubleE => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -1855,19 +1973,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::Letter('e') => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1876,8 +1994,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")                }
-                    },
+                            _ => panic!("!!!"),
+                        }
+                    }
                     'l' => {
                         temporary_text.push('l');
                         State::ElseL
@@ -1886,12 +2005,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ElseL => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1900,9 +2019,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     's' => {
                         temporary_text.push('s');
                         State::ElseS
@@ -1911,12 +2030,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ElseS => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1925,9 +2044,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::ElseE
@@ -1936,12 +2055,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ElseE => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -1950,19 +2069,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::Letter('f') => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -1971,13 +2090,14 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")                }
-                    },
+                            _ => panic!("!!!"),
+                        }
+                    }
                     'a' => {
                         temporary_text.push('a');
                         State::FalseA
                     }
-                     'o' => {
+                    'o' => {
                         temporary_text.push('o');
                         State::ForO
                     }
@@ -1993,12 +2113,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::FalseA => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2007,9 +2127,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'l' => {
                         temporary_text.push('l');
                         State::FalseL
@@ -2018,12 +2138,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::FalseL => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2032,9 +2152,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     's' => {
                         temporary_text.push('s');
                         State::FalseS
@@ -2043,12 +2163,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::FalseS => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2057,9 +2177,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::FalseE
@@ -2068,12 +2188,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::FalseE => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -2082,19 +2202,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::FloatL => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2103,9 +2223,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'o' => {
                         temporary_text.push('o');
                         State::FloatO
@@ -2114,12 +2234,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::FloatO => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2128,9 +2248,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'a' => {
                         temporary_text.push('a');
                         State::FloatA
@@ -2139,12 +2259,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::FloatA => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2153,9 +2273,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     't' => {
                         temporary_text.push('t');
                         State::FloatT
@@ -2164,12 +2284,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::FloatT => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -2178,19 +2298,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ForO => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2199,9 +2319,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'r' => {
                         temporary_text.push('r');
                         State::ForR
@@ -2210,12 +2330,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ForR => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -2224,19 +2344,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::FriendR => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2245,9 +2365,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'i' => {
                         temporary_text.push('i');
                         State::FriendI
@@ -2256,12 +2376,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::FriendI => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2270,9 +2390,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::FriendE
@@ -2281,12 +2401,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::FriendE => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2295,9 +2415,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'n' => {
                         temporary_text.push('n');
                         State::FriendN
@@ -2306,12 +2426,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::FriendN => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2320,9 +2440,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'd' => {
                         temporary_text.push('d');
                         State::FriendD
@@ -2331,12 +2451,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::FriendD => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -2345,19 +2465,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::Letter('g') => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2366,8 +2486,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")                }
-                    },
+                            _ => panic!("!!!"),
+                        }
+                    }
                     'o' => {
                         temporary_text.push('o');
                         State::GotoO
@@ -2376,12 +2497,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::GotoO => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2390,9 +2511,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     't' => {
                         temporary_text.push('t');
                         State::GotoT
@@ -2401,12 +2522,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::GotoT => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2415,9 +2536,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'o' => {
                         temporary_text.push('o');
                         State::GotoO2
@@ -2426,12 +2547,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::GotoO2 => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -2440,19 +2561,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::IfF => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -2461,19 +2582,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::Letter('l') => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2482,8 +2603,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")                }
-                    },
+                            _ => panic!("!!!"),
+                        }
+                    }
                     'o' => {
                         temporary_text.push('o');
                         State::LongO
@@ -2492,12 +2614,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::LongO => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2506,9 +2628,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'n' => {
                         temporary_text.push('n');
                         State::LongN
@@ -2517,12 +2639,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::LongN => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2531,9 +2653,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'g' => {
                         temporary_text.push('g');
                         State::LongG
@@ -2542,12 +2664,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::LongG => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -2556,19 +2678,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::Letter('n') => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2577,8 +2699,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")                }
-                    },
+                            _ => panic!("!!!"),
+                        }
+                    }
                     'a' => {
                         temporary_text.push('a');
                         State::NamespaceA
@@ -2591,12 +2714,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::NamespaceA => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2605,9 +2728,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'm' => {
                         temporary_text.push('m');
                         State::NamespaceM
@@ -2616,12 +2739,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::NamespaceM => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2630,9 +2753,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::NamespaceE
@@ -2641,12 +2764,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::NamespaceE => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2655,9 +2778,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     's' => {
                         temporary_text.push('s');
                         State::NamespaceS
@@ -2666,12 +2789,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::NamespaceS => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2680,9 +2803,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'p' => {
                         temporary_text.push('p');
                         State::NamespaceP
@@ -2691,12 +2814,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::NamespaceP => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2705,9 +2828,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'a' => {
                         temporary_text.push('a');
                         State::NamespaceA2
@@ -2716,12 +2839,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::NamespaceA2 => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2730,9 +2853,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'c' => {
                         temporary_text.push('c');
                         State::NamespaceC
@@ -2741,12 +2864,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::NamespaceC => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2755,9 +2878,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::NamespaceE2
@@ -2766,12 +2889,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::NamespaceE2 => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -2780,19 +2903,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::NewE => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2801,9 +2924,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'w' => {
                         temporary_text.push('w');
                         State::NewW
@@ -2812,12 +2935,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::NewW => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -2826,19 +2949,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::Letter('o') => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2847,8 +2970,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")                }
-                    },
+                            _ => panic!("!!!"),
+                        }
+                    }
                     'p' => {
                         temporary_text.push('p');
                         State::OperatorP
@@ -2857,12 +2981,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::OperatorP => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2871,9 +2995,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::OperatorE
@@ -2882,12 +3006,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::OperatorE => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2896,9 +3020,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'r' => {
                         temporary_text.push('r');
                         State::OperatorR
@@ -2907,12 +3031,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::OperatorR => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2921,9 +3045,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'a' => {
                         temporary_text.push('a');
                         State::OperatorA
@@ -2932,12 +3056,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::OperatorA => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2946,9 +3070,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     't' => {
                         temporary_text.push('t');
                         State::OperatorT
@@ -2957,12 +3081,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::OperatorT => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2971,9 +3095,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'o' => {
                         temporary_text.push('o');
                         State::OperatorO
@@ -2982,12 +3106,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::OperatorO => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -2996,9 +3120,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'r' => {
                         temporary_text.push('r');
                         State::OperatorR2
@@ -3007,12 +3131,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::OperatorR2 => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -3021,19 +3145,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::Letter('s') => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3042,8 +3166,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")                }
-                    },
+                            _ => panic!("!!!"),
+                        }
+                    }
                     'h' => {
                         temporary_text.push('h');
                         State::ShortH
@@ -3060,12 +3185,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ShortH => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3074,9 +3199,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'o' => {
                         temporary_text.push('o');
                         State::ShortO
@@ -3085,12 +3210,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ShortO => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3099,9 +3224,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'r' => {
                         temporary_text.push('r');
                         State::ShortR
@@ -3110,12 +3235,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ShortR => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3124,9 +3249,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     't' => {
                         temporary_text.push('t');
                         State::ShortT
@@ -3135,12 +3260,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ShortT => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -3149,19 +3274,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::SignedI => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3170,9 +3295,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'g' => {
                         temporary_text.push('g');
                         State::SignedG
@@ -3185,12 +3310,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::SignedG => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3199,9 +3324,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'n' => {
                         temporary_text.push('n');
                         State::SignedN
@@ -3210,12 +3335,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::SignedN => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3224,9 +3349,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::SignedE
@@ -3235,12 +3360,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::SignedE => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3249,9 +3374,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'd' => {
                         temporary_text.push('d');
                         State::SignedD
@@ -3260,12 +3385,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::SignedD => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -3274,19 +3399,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::SizeofI => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3295,9 +3420,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'z' => {
                         temporary_text.push('z');
                         State::SizeofZ
@@ -3306,12 +3431,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::SizeofZ => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3320,9 +3445,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::SizeofE
@@ -3331,12 +3456,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::SizeofE => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3345,9 +3470,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'o' => {
                         temporary_text.push('o');
                         State::SizeofO
@@ -3356,12 +3481,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::SizeofO => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3370,9 +3495,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'f' => {
                         temporary_text.push('f');
                         State::SizeofF
@@ -3381,12 +3506,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::SizeofF => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -3395,19 +3520,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::StaticT => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3416,9 +3541,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'a' => {
                         temporary_text.push('a');
                         State::StaticA
@@ -3431,12 +3556,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::StaticA => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3445,9 +3570,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     't' => {
                         temporary_text.push('t');
                         State::StaticT2
@@ -3456,12 +3581,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::StaticT2 => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3470,9 +3595,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'i' => {
                         temporary_text.push('i');
                         State::StaticI
@@ -3481,12 +3606,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::StaticI => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3495,9 +3620,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'c' => {
                         temporary_text.push('c');
                         State::StaticC
@@ -3506,12 +3631,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::StaticC => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -3520,19 +3645,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::StructR => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3541,9 +3666,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'u' => {
                         temporary_text.push('u');
                         State::StructU
@@ -3552,12 +3677,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::StructU => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3566,9 +3691,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'c' => {
                         temporary_text.push('c');
                         State::StructC
@@ -3577,12 +3702,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::StructC => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3591,9 +3716,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     't' => {
                         temporary_text.push('t');
                         State::StructT
@@ -3602,12 +3727,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::StructT => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -3616,19 +3741,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::Letter('t') => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3637,8 +3762,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")                }
-                    },
+                            _ => panic!("!!!"),
+                        }
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::TemplateE
@@ -3655,12 +3781,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::TemplateE => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3669,9 +3795,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'm' => {
                         temporary_text.push('m');
                         State::TemplateM
@@ -3680,12 +3806,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::TemplateM => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3694,9 +3820,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'p' => {
                         temporary_text.push('p');
                         State::TemplateP
@@ -3705,12 +3831,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::TemplateP => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3719,9 +3845,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'l' => {
                         temporary_text.push('l');
                         State::TemplateL
@@ -3730,12 +3856,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::TemplateL => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3744,9 +3870,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'a' => {
                         temporary_text.push('a');
                         State::TemplateA
@@ -3755,12 +3881,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::TemplateA => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3769,9 +3895,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     't' => {
                         temporary_text.push('t');
                         State::TemplateT
@@ -3780,12 +3906,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::TemplateT => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3794,9 +3920,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::TemplateE2
@@ -3805,12 +3931,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::TemplateE2 => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -3819,19 +3945,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ThisH => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3840,9 +3966,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'i' => {
                         temporary_text.push('i');
                         State::ThisI
@@ -3851,12 +3977,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ThisI => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3865,9 +3991,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     's' => {
                         temporary_text.push('s');
                         State::ThisS
@@ -3876,12 +4002,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ThisS => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -3890,19 +4016,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ThrowH => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3911,9 +4037,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'r' => {
                         temporary_text.push('r');
                         State::ThrowR
@@ -3922,12 +4048,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ThrowR => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3936,9 +4062,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'o' => {
                         temporary_text.push('o');
                         State::ThrowO
@@ -3947,12 +4073,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ThrowO => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -3961,9 +4087,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'w' => {
                         temporary_text.push('w');
                         State::ThrowW
@@ -3972,12 +4098,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::ThrowW => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -3986,19 +4112,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::TrueR => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4007,9 +4133,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'u' => {
                         temporary_text.push('u');
                         State::TrueU
@@ -4022,12 +4148,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::TrueU => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4036,9 +4162,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::TrueE
@@ -4047,12 +4173,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::TrueE => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -4061,19 +4187,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::TryY => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -4082,19 +4208,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::Letter('u') => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4103,8 +4229,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")                }
-                    },
+                            _ => panic!("!!!"),
+                        }
+                    }
                     'n' => {
                         temporary_text.push('n');
                         State::UnionN
@@ -4117,12 +4244,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::UnionN => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4131,9 +4258,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'i' => {
                         temporary_text.push('i');
                         State::UnionI
@@ -4146,12 +4273,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::UnionI => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4160,9 +4287,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'o' => {
                         temporary_text.push('o');
                         State::UnionO
@@ -4171,12 +4298,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::UnionO => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4185,9 +4312,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'n' => {
                         temporary_text.push('n');
                         State::UnionN2
@@ -4196,12 +4323,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::UnionN2 => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -4210,19 +4337,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::UnsignedS => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4231,9 +4358,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'i' => {
                         temporary_text.push('i');
                         State::UnsignedI
@@ -4242,12 +4369,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::UnsignedI => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4256,9 +4383,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'g' => {
                         temporary_text.push('g');
                         State::UnsignedG
@@ -4267,12 +4394,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::UnsignedG => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4281,9 +4408,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'n' => {
                         temporary_text.push('n');
                         State::UnsignedN
@@ -4292,12 +4419,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::UnsignedN => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4306,9 +4433,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::UnsignedE
@@ -4317,12 +4444,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::UnsignedE => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4331,9 +4458,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'd' => {
                         temporary_text.push('d');
                         State::UnsignedD
@@ -4342,12 +4469,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::UnsignedD => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -4356,19 +4483,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::UsingS => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4377,9 +4504,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'i' => {
                         temporary_text.push('i');
                         State::UsingI
@@ -4388,12 +4515,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::UsingI => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4402,9 +4529,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'n' => {
                         temporary_text.push('n');
                         State::UsingN
@@ -4413,12 +4540,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::UsingN => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4427,9 +4554,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'g' => {
                         temporary_text.push('g');
                         State::UsingG
@@ -4438,12 +4565,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::UsingG => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -4452,19 +4579,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::Letter('v') => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4473,8 +4600,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")                }
-                    },
+                            _ => panic!("!!!"),
+                        }
+                    }
                     'i' => {
                         temporary_text.push('i');
                         State::VirtualI
@@ -4487,12 +4615,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::VirtualI => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4501,9 +4629,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'r' => {
                         temporary_text.push('r');
                         State::VirtualR
@@ -4512,12 +4640,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::VirtualR => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4526,9 +4654,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     't' => {
                         temporary_text.push('t');
                         State::VirtualT
@@ -4537,12 +4665,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::VirtualT => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4551,9 +4679,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'u' => {
                         temporary_text.push('u');
                         State::VirtualU
@@ -4562,12 +4690,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::VirtualU => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4576,9 +4704,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'a' => {
                         temporary_text.push('a');
                         State::VirtualA
@@ -4587,12 +4715,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::VirtualA => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4601,9 +4729,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'l' => {
                         temporary_text.push('l');
                         State::VirtualL
@@ -4612,12 +4740,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::VirtualL => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -4626,19 +4754,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::VoidO => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4647,9 +4775,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'i' => {
                         temporary_text.push('i');
                         State::VoidI
@@ -4658,12 +4786,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::VoidI => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4672,9 +4800,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'd' => {
                         temporary_text.push('d');
                         State::VoidD
@@ -4683,12 +4811,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::VoidD => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -4697,19 +4825,19 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::Letter('w') => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4718,8 +4846,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")                }
-                    },
+                            _ => panic!("!!!"),
+                        }
+                    }
                     'h' => {
                         temporary_text.push('h');
                         State::WhileH
@@ -4728,12 +4857,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::WhileH => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4742,9 +4871,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'i' => {
                         temporary_text.push('i');
                         State::WhileI
@@ -4753,12 +4882,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::WhileI => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4767,9 +4896,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'l' => {
                         temporary_text.push('l');
                         State::WhileL
@@ -4778,12 +4907,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::WhileL => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Identifier,
@@ -4792,9 +4921,9 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     'e' => {
                         temporary_text.push('e');
                         State::WhileE
@@ -4803,12 +4932,12 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
             State::WhileE => {
                 state = match current {
-                    c if [' ', '\t',';'].contains(&c) => {
+                    c if [' ', '\t', ';'].contains(&c) => {
                         tokens.push(Token {
                             token: temporary_text.clone(),
                             token_type: TokenType::Keyword,
@@ -4817,16 +4946,16 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             c if c.is_whitespace() => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("!!!")
+                            _ => panic!("!!!"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectKeyword(location)),
                 };
-            },
+            }
 
             State::Letter(l) => {
                 state = match current {
@@ -4839,18 +4968,17 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         match c {
                             ' ' | '\t' => State::Whitespace,
                             ';' => State::Character(';'),
-                            _ => panic!("???")
+                            _ => panic!("???"),
                         }
-                    },
+                    }
                     c if c.is_alphanumeric() => {
                         temporary_text.push(c);
                         State::IdentifierCharacter(c)
                     }
-                    _ => return Err(Error::IncorrectIdentifier),
+                    _ => return Err(Error::IncorrectIdentifier(location)),
                 };
             }
-            _ => {
-            }
+            _ => {}
         }
     }
     Ok(tokens)
