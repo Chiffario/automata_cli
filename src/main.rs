@@ -6,7 +6,7 @@ mod cleanup;
 mod lexemes;
 
 fn main() {
-    let basic = fs::read_to_string("data/fish_counter.cpp").unwrap();
+    let basic = fs::read_to_string("data/hello_world.cpp").unwrap();
     let cleaned = cleanup::remove_comments(basic);
     println!("{}", cleanup::add_line_numbers(cleaned.clone()));
     let lexemes = lexemes::count_tokens(cleaned);
