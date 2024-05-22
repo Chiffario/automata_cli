@@ -452,15 +452,15 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     _ => Character(current)
                 }
             }
-            State::Separator(char) => {
-                state = match current {
+            // State::Separator(char) => {
+            //     state = match current {
 
-                }
-            }
-            State::Number(char) => {
-                state = match current {
-                }
-            }
+            //     }
+            // }
+            // State::Number(char) => {
+            //     state = match current {
+            //     }
+            // }
             State::Underscore => {
                 buff.push(current);
                 state = match current {
@@ -688,7 +688,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                 state = match current {
                     '=' => {
                         is_writable = true;
-                        state = State::NEq
+                        State::NEq
                     }
                     ' ' | '\n' | '\t' => State::Whitespace,
                     _ => {
@@ -1028,6 +1028,23 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     }
                 }
             }
+            State::Letter('c') => {
+                buff.push(current);
+                state = match current {
+                    'a' => State::CaA,
+                    'h' => State::CharH,
+                    'o' => State::CoO,
+                    c if c.is_alphanumeric() => {
+                        buff.push(current);
+                        State::Letter(current)
+                    },
+                    ' ' | '\n' | '\t' | '('|')'|'['|']'| '{'| '}'| ';' => {
+                        State::Whitespace
+                    }
+                    _ => Character(current)
+
+                }
+            }
             State::CaA => {
                 buff.push(current);
                 state = match current {
@@ -1054,7 +1071,10 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             }
             State::CaseE => {
                 state = match current {
-                    c if c.is_alphanumeric() => Letter(c),
+                    c if c.is_alphanumeric() => {
+                        buff.push(c);
+                        Letter(c)
+                    }
                     ' ' | '\n' | '\t' | '('|')'|'['|']'| '{'| '}'| ';' => {
                         State::KeywordEnd
                     }
@@ -1062,31 +1082,74 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                 }
             }
             State::CatchT => {
+                buff.push(current);
                 state = match current {
+                    'c' => State::CatchC,
+                    c if c.is_alphanumeric() => State::Letter(c),
+                     ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                        State::Whitespace
+                    }
+                    _ => State::Character(current)                    
                 }
             }
             State::CatchC => {
+                buff.push(current);
                 state = match current {
+                    'h' => State::CatchH,
+                    c if c.is_alphanumeric() => State::Letter(c),
+                    ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                        State::Whitespace
+                    }
+                    _ => State::Character(current)
                 }
             }
             State::CatchH => {
                 state = match current {
-                }
+                    c if c.is_alphanumeric() => {
+                        buff.push(current);
+                        State::Letter(c)
+                    }
+                    ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                        State::KeywordEnd
+                    }
+                    _ => State::Character(current)
+                 }
             }
             State::CharH => {
+                buff.push(current);
                 state = match current {
+                    'a' => State::CharA,
+                    c if c.is_alphanumeric() => State::Letter(c),
+                    ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                        State::Whitespace
+                    }
+                    _ => State::Character(current)
                 }
             }
             State::CharA => {
+                buff.push(current);
                 state = match current {
+                    'r' => State::CharR,
+                    c if c.is_alphanumeric() => State::Letter(c),
+                    ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                        State::Whitespace
+                    }
+                    _ => State::Character(current)
                 }
             }
             State::CharR => {
                 state = match current {
+                    c if c.is_alphanumeric() => State::Letter(c),
+                    ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                        State::KeywordEnd
+                    }
+                    _ => State::Character(current)
                 }
             }
             State::ClassL => {
+                buff.push(current);
                 state = match current {
+
                 }
             }
             State::ClassA => {
@@ -1341,13 +1404,32 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                 state = match current {
                 }
             }
-            State::InN => {
+            State::Letter('i') => {
+                buff.push(current)
                 state = match current {
+                    'n' => State::InN,
+                    'f' => State::IfF,
+                    ' ' | '\n' | '\t' => {
+                        is_writable = true;
+                        State::Whitespace
+                    }
+                    c if c.is_alphanumeric() => State::Letter(c),
+                    _ => State::Character(current),
+                    
                 }
             }
-            State::InlineN => {
+            State::InN => {
+                buff.push(current)
                 state = match current {
-                }
+                    't' => IntT,
+                    'l' => InlineL,
+                    ' ' | '\n' | '\t' => {
+                        is_writable = true;
+                        State::Whitespace
+                    }
+                    c if c.is_alphanumeric() => State::Letter(c),
+                    _ => State::Character(current),
+                    }
             }
             State::InlineL => {
                 state = match current {
@@ -1365,12 +1447,20 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                 state = match current {
                 }
             }
-            State::IntN => {
-                state = match current {
-                }
-            }
             State::IntT => {
                 state = match current {
+                    c if c.is_alphanumeric() => {
+                        buff.push(current);
+                        State::Letter(c)
+                    }
+                    ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                        current_idx -= 1;
+                        State::KeywordEnd
+                    },
+                    _ => {
+                        buff.push(current);
+                        State::Character(current)
+                    }
                 }
             }
             State::LongO => {
