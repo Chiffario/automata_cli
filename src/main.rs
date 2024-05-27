@@ -1,6 +1,4 @@
-use crate::lexemes::TokenType;
 use std::fs;
-use crate::lexemes::TokenType::Identifier;
 
 mod cleanup;
 mod lexemes;
@@ -11,5 +9,5 @@ fn main() {
     println!("{}", cleanup::add_line_numbers(cleaned.clone()));
     let lexemes = lexemes::count_tokens(cleaned);
     let tmp = lexemes.unwrap();
-    println!("{:#?}", tmp);
+    println!("{:?}", tmp);
 }

@@ -37,6 +37,7 @@ enum State {
 
     OperatorEnd,
     KeywordEnd,
+    StringLiteral(char),
     // Operators:
     /// +
     Add,
@@ -869,8 +870,14 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             }
             State::Letter('a') => {
                 match current {
-                    's' => state = State::AsmS,
-                    'u' => state = State::AutoU,
+                    's' => {
+                        buff.push(current);
+                        state = State::AsmS
+                    }
+                    'u' => {
+                        buff.push(current);
+                        state = State::AutoU;
+                    }
                     c if c.is_alphanumeric() || c == '_' => {
                         buff.push(current);
                         state = State::Identifier(c)
@@ -895,7 +902,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         buff.push(current);
                         state = State::Identifier(c)
                     }
-                    ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                    ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                         current_idx -= 1;
                         is_writable = true;
                     }
@@ -915,7 +922,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         buff.push(current);
                         state = State::Identifier(c);
                     }
-                    ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                    ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                         current_idx -= 1;
                         is_writable = true;
                     }
@@ -927,13 +934,16 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             }
             State::AutoT => {
                 match current {
-                    'o' => State::KeywordEnd,
-                    c if c.is_alphanumeric() || c == '_' => State::Identifier(c),
-                    ' ' | '\n' | '\t' => State::Whitespace,
+                    'o' => {
+                        buff.push(current);
+                        state = State::KeywordEnd
+                    }
+                    c if c.is_alphanumeric() || c == '_' => state = State::Identifier(c),
+                    ' ' | '\n' | '\t' => state = State::Whitespace,
 
                     _ => {
                         buff.push(current);
-                        State::Character(current)
+                        state = State::Character(current)
                     }
                 };
             }
@@ -962,7 +972,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::BreakR
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -981,7 +991,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                 c if c.is_alphanumeric() || c == '_' => {
                     state = State::Identifier(c);
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -996,7 +1006,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                         state = State::KeywordEnd
                     }
                     c if c.is_alphanumeric() => state = State::Letter(c),
-                    ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                    ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                         current_idx -= 1;
                         is_writable = true;
                     }
@@ -1025,7 +1035,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     state = State::BreakE
                 }
                 c if c.is_alphanumeric() => state = State::Identifier(c),
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1037,7 +1047,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     state = State::BreakA
                 }
                 c if c.is_alphanumeric() => state = State::Letter(c),
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1049,7 +1059,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     state = State::KeywordEnd
                 }
                 c if c.is_alphanumeric() => state = State::Letter(c),
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1061,7 +1071,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             //             buff.push(current);
             //             state = State::Identifier(c)
             //         },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         },
@@ -1085,7 +1095,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     state = State::CoO
                 }
                 c if c.is_alphanumeric() => state = State::Letter(current),
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1101,7 +1111,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     state = State::CatchT
                 }
                 c if c.is_alphanumeric() => state = State::Identifier(c),
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1113,7 +1123,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     state = State::KeywordEnd
                 }
                 c if c.is_alphanumeric() => state = State::Identifier(c),
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1140,7 +1150,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1155,7 +1165,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1167,7 +1177,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             //             buff.push(current);
             //             State::Identifier(c)
             //         }
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             State::KeywordEnd
             //         }
             //         _ => State::Character(current)
@@ -1182,7 +1192,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1197,7 +1207,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1209,7 +1219,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             //            buff.push(c);
             //            State::Identifier(c)
             //         }
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             State::KeywordEnd
             //         }
             //         _ => State::Character(current)
@@ -1224,7 +1234,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1239,7 +1249,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1254,7 +1264,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1264,7 +1274,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             //     match current {
             //
             //         c if c.is_alphanumeric() || c == '_' => State::Identifier(c),
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             State::Whitespace
             //         }
             //         _ => State::Character(current)
@@ -1283,7 +1293,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1298,7 +1308,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1313,7 +1323,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1323,7 +1333,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             //     match current {
             //
             //         c if c.is_alphanumeric() || c == '_' => State::Identifier(c),
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             // is_writable = true;
             //         }
@@ -1343,7 +1353,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1358,7 +1368,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1373,7 +1383,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1388,7 +1398,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1398,7 +1408,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             //     match current {
             //
             //         c if c.is_alphanumeric() || c == '_' => State::Identifier(c),
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             // is_writable = true;
             //         }
@@ -1414,7 +1424,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1424,7 +1434,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             //     match current {
             //
             //         c if c.is_alphanumeric() || c == '_' => State::Identifier(c),
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             // is_writable = true;
             //         }
@@ -1444,7 +1454,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1463,7 +1473,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1478,7 +1488,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1493,7 +1503,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1508,7 +1518,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1523,7 +1533,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1533,7 +1543,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             //     match current {
             //
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -1549,7 +1559,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1564,7 +1574,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1579,7 +1589,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1589,7 +1599,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             //     match current {
             //
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -1605,7 +1615,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1620,7 +1630,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1635,7 +1645,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1650,7 +1660,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1660,7 +1670,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             //     match current {
             //
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -1684,7 +1694,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1699,7 +1709,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1714,7 +1724,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1724,7 +1734,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             //     match current {
             //
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -1740,7 +1750,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1755,7 +1765,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1765,7 +1775,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             //     match current {
             //
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -1775,7 +1785,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::ExX => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -1785,7 +1795,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::ExportP => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -1795,7 +1805,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::ExportO => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -1805,7 +1815,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::ExportR => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -1815,7 +1825,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::ExportT => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -1825,7 +1835,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::ExternT => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -1835,7 +1845,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::ExternE => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -1845,7 +1855,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::ExternR => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -1855,7 +1865,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::ExternN => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -1883,7 +1893,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1898,7 +1908,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1913,7 +1923,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1928,7 +1938,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1937,7 +1947,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::FalseE => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -1953,7 +1963,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1968,7 +1978,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1983,7 +1993,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -1992,7 +2002,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::FloatT => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -2008,7 +2018,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2017,7 +2027,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::ForR => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -2033,7 +2043,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2048,7 +2058,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2063,7 +2073,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2078,7 +2088,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2093,7 +2103,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2108,7 +2118,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2123,7 +2133,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2132,7 +2142,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::GotoO2 => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -2152,7 +2162,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2163,7 +2173,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2182,7 +2192,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2197,7 +2207,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2212,7 +2222,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2227,7 +2237,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2236,7 +2246,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::InlineE => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -2249,7 +2259,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             //             buff.push(current);
             //             State::Letter(c)
             //         }
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             State::KeywordEnd
             //         },
@@ -2268,7 +2278,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2283,7 +2293,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2298,7 +2308,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2307,7 +2317,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::LongG => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -2323,7 +2333,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2338,7 +2348,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2353,7 +2363,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2368,7 +2378,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2383,7 +2393,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2398,7 +2408,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2407,7 +2417,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::MutableE => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -2431,7 +2441,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2446,7 +2456,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2461,7 +2471,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2476,7 +2486,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2491,7 +2501,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2506,7 +2516,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2521,7 +2531,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2536,7 +2546,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2545,7 +2555,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::NamespaceE2 => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -2561,7 +2571,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2570,7 +2580,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::NewW => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -2586,7 +2596,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2601,7 +2611,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2616,7 +2626,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2631,7 +2641,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2646,7 +2656,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2655,7 +2665,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::NullptrR => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -2671,7 +2681,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2686,7 +2696,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2701,7 +2711,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2716,7 +2726,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2731,7 +2741,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2746,7 +2756,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2755,7 +2765,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::OperatorR2 => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -2775,7 +2785,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2794,7 +2804,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2804,7 +2814,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             //     match current {
             //         'i' => { buff.push(current); state = State::PrivateI },
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -2820,7 +2830,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2835,7 +2845,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2850,7 +2860,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2865,7 +2875,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2874,7 +2884,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::PrivateE => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -2884,7 +2894,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::ProtectedR => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -2900,7 +2910,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2915,7 +2925,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2930,7 +2940,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2945,7 +2955,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2960,7 +2970,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2975,7 +2985,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -2984,7 +2994,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::ProtectedD => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -3000,7 +3010,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3015,7 +3025,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3030,7 +3040,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3045,7 +3055,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3054,7 +3064,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::PublicC => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -3070,7 +3080,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3085,7 +3095,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3100,7 +3110,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3115,7 +3125,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3130,7 +3140,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3139,7 +3149,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::ReturnN => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -3167,7 +3177,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3182,7 +3192,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3197,7 +3207,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3212,7 +3222,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3221,7 +3231,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::ShortT => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -3241,7 +3251,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3256,7 +3266,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3271,7 +3281,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3286,7 +3296,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3295,7 +3305,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::SignedD => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -3311,7 +3321,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3326,7 +3336,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3341,7 +3351,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3350,7 +3360,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::SizeofF => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -3366,7 +3376,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3381,7 +3391,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3396,7 +3406,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3411,7 +3421,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3420,7 +3430,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::StaticC => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -3436,7 +3446,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3451,7 +3461,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3466,7 +3476,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3475,7 +3485,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::StructT => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -3491,7 +3501,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3506,7 +3516,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3521,7 +3531,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3536,7 +3546,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3545,7 +3555,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::SwitchH => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -3569,7 +3579,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3584,7 +3594,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3599,7 +3609,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3614,7 +3624,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3629,7 +3639,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3644,7 +3654,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3659,7 +3669,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3668,7 +3678,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::TemplateE2 => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -3688,7 +3698,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3703,7 +3713,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3712,7 +3722,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::ThisS => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -3728,7 +3738,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3743,7 +3753,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3752,7 +3762,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::ThrowW => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -3772,7 +3782,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3787,7 +3797,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3796,7 +3806,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::TrueE => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -3806,7 +3816,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::TryY => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -3826,7 +3836,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3845,7 +3855,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3860,7 +3870,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3875,7 +3885,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3884,7 +3894,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::UnionN => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -3900,7 +3910,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3915,7 +3925,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3930,7 +3940,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3945,7 +3955,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3960,7 +3970,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -3969,7 +3979,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::UnsignedD => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -3985,7 +3995,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -4000,7 +4010,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -4015,7 +4025,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -4024,7 +4034,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::UsingG => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -4044,7 +4054,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -4059,7 +4069,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -4074,7 +4084,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -4089,7 +4099,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -4104,7 +4114,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -4119,7 +4129,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -4128,7 +4138,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::VirtualL => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -4144,7 +4154,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -4159,7 +4169,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -4168,7 +4178,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::VoidD => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -4184,7 +4194,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -4199,7 +4209,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -4214,7 +4224,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -4229,7 +4239,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -4238,7 +4248,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             // State::WhileE => {
             //     match current {
             //         c if c.is_alphanumeric() || c == '_' => { buff.push(current); state = State::Identifier(c) },
-            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+            //         ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
             //             current_idx -= 1;
             //             is_writable = true;
             //         }
@@ -4250,7 +4260,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
@@ -4275,14 +4285,43 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                     buff.push(current);
                     state = State::Identifier(c)
                 }
-                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' => {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
                     current_idx -= 1;
                     is_writable = true;
                 }
                 _ => state = State::Character(current),
             },
-            State::Character(_) => {}
-            State::Number(_) => {}
+            State::Character('"') => {
+                buff.push(current);
+                match current {
+                    _ => state = State::StringLiteral(current),
+                }
+            }
+            State::StringLiteral('"') => match current {
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
+                    current_idx -= 1;
+                    is_writable = true;
+                }
+                _ => state = State::Character(current),
+            },
+            State::StringLiteral(c) => match current {
+                '"' => state = State::StringLiteral('"'),
+                c => {
+                    buff.push(current);
+                    state = State::StringLiteral(current);
+                }
+            },
+            State::Number(n) => match current {
+                c if c.is_numeric() || c == '_' || c == 'e' => {
+                    buff.push(c);
+                    state = State::Number(c);
+                }
+                ' ' | '\n' | '\t' | '(' | ')' | '[' | ']' | '{' | '}' | ';' | ',' => {
+                    current_idx -= 1;
+                    is_writable = true;
+                }
+                _ => state = State::Character(current),
+            },
 
             State::Letter(l) => match current {
                 c if c.is_alphanumeric() || c == '_' => {
@@ -4307,6 +4346,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                 State::KeywordEnd => TokenType::Keyword,
                 State::Number(_) => TokenType::ConstValue,
                 State::Separator(_) => TokenType::Separator,
+                State::StringLiteral(_) => TokenType::StringLiteral,
                 _ => TokenType::None,
             };
             state = State::Whitespace;
