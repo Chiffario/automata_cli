@@ -35,7 +35,7 @@ enum State {
     /// _, used for variable name starts
     Underscore,
 
-    OperatorEnd,
+    Operator(char),
     KeywordEnd,
     StringLiteral(char),
     // Operators:
@@ -382,19 +382,58 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             State::Whitespace => {
                 state = match current {
                     ' ' | '\n' | '\t' => State::Whitespace,
-                    '+' => State::Add,
-                    '-' => State::Sub,
-                    '*' => State::Mul,
-                    '/' => State::Div,
-                    '%' => State::Mod,
-                    '<' => State::LT,
-                    '>' => State::GT,
-                    '=' => State::Assign,
-                    '!' => State::Neg,
-                    '&' => State::BitAnd,
-                    '|' => State::BitOr,
-                    '^' => State::BitXor,
-                    ',' => State::Comma,
+                    '+' => {
+                        buff.push(current);
+                        State::Add
+                    }
+                    '-' => {
+                        buff.push(current);
+                        State::Sub
+                    }
+                    '*' => {
+                        buff.push(current);
+                        State::Mul
+                    }
+                    '/' => {
+                        buff.push(current);
+                        State::Div
+                    }
+                    '%' => {
+                        buff.push(current);
+                        State::Mod
+                    }
+                    '<' => {
+                        buff.push(current);
+                        State::LT
+                    }
+                    '>' => {
+                        buff.push(current);
+                        State::GT
+                    }
+                    '=' => {
+                        buff.push(current);
+                        State::Assign
+                    }
+                    '!' => {
+                        buff.push(current);
+                        State::Neg
+                    }
+                    '&' => {
+                        buff.push(current);
+                        State::BitAnd
+                    }
+                    '|' => {
+                        buff.push(current);
+                        State::BitOr
+                    }
+                    '^' => {
+                        buff.push(current);
+                        State::BitXor
+                    }
+                    ',' => {
+                        buff.push(current);
+                        State::Separator(current)
+                    }
                     '_' => State::Underscore,
                     c if c.is_alphabetic() => {
                         buff.push(current);
@@ -4337,7 +4376,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
             },
             _ => {}
         }
-        println!("{} : {:?}, {}", current, state, is_writable);
+        println!("{} : {:?}, {} buff: {}", current, state, is_writable, buff);
         current_idx += 1;
 
         if is_writable {
@@ -4347,7 +4386,7 @@ pub fn count_tokens(text: String) -> Result<Vec<Token>, Error> {
                 State::Number(_) => TokenType::ConstValue,
                 State::Separator(_) => TokenType::Separator,
                 State::StringLiteral(_) => TokenType::StringLiteral,
-                _ => TokenType::None,
+                _ => TokenType::Operator,
             };
             state = State::Whitespace;
             is_writable = false;
